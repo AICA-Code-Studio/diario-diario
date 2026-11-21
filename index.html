@@ -1,0 +1,1482 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#19382e">
+<title>Diario diario</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icon-192.png">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<style>
+:root {
+  color-scheme: light;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #21362e;
+  background: #f5f6f1;
+  --green: #19382e;
+  --text: #21362e;
+  --muted: #53675d;
+  --line: #d9e2d8;
+  --paper: #fffefa;
+  --mint: #dcebdd;
+  --peach: #fae8da;
+  --lilac: #eee9fa;
+}
+* { box-sizing: border-box }
+[hidden] { display: none !important }
+body { margin: 0 }
+button, input, select, textarea { font: inherit }
+button { cursor: pointer; -webkit-tap-highlight-color: transparent }
+button, input, textarea, select { min-height: 44px }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible {
+  outline: 3px solid #347656; outline-offset: 3px;
+}
+.header { color: #f5faef; background: var(--green); }
+.heading, main { max-width: 660px; margin: auto; padding-inline: 22px; }
+.heading { position: relative; overflow: hidden; padding-top: max(34px, env(safe-area-inset-top)); padding-bottom: 75px; }
+.heading:before, .heading:after {
+  content: ""; position: absolute; z-index: 0; right: -60px; top: -94px;
+  width: 254px; height: 254px; border: 1px solid #65917b; opacity: .39;
+  border-radius: 38% 68% 40% 55%; transform: rotate(-36deg); pointer-events: none;
+}
+.heading:after { right: -26px; top: -120px; width: 264px; height: 264px; }
+.heading > * { position: relative; z-index: 1 }
+.heading h1 { font-size: clamp(2.6rem, 8vw, 4.25rem); line-height: 1.04; font-family: Georgia, serif; font-weight: 400; letter-spacing: -.055em; margin: 12px 0 11px }
+.heading p { margin: 0; color: #c8ddcb; line-height: 1.45 }
+.heading .date { color: #b3d3bb; font-size: .87rem; font-weight: 650; letter-spacing: .025em }
+.heading .date:first-letter { text-transform: uppercase }
+main { margin-top: -48px; position: relative; z-index: 2; padding-bottom: max(27px, env(safe-area-inset-bottom)); }
+.card { background: var(--paper); border: 1px solid var(--line); border-radius: 22px; box-shadow: 0 6px 25px #1f473411; padding: 18px }
+h2 { margin: 0; font-size: 1.19rem; letter-spacing: -.025em }
+.quick { margin: 0 0 23px }
+.quick h2 { margin-bottom: 12px }
+.quick-actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px }
+.quick-button {
+  border: 0; border-radius: 13px; padding: 7px 2px; min-height: 63px;
+  color: var(--text); font-size: .82rem; font-weight: 700; display: grid;
+  justify-items: center; align-content: center; gap: 1px; text-align: center;
+}
+.mark { display: grid; place-items: center; width: 31px; height: 31px; border-radius: 11px; font-size: 1.1rem }
+.comida { background: var(--mint) }
+.estado { background: var(--peach) }
+.bano { background: var(--lilac) }
+.agua { background: #dcecf6 }
+.actividad { background: #e9edd9 }
+.sueno { background: #e1e5f6 }
+.medicacion { background: #f6e3e9 }
+.presion { background: #e5eee1 }
+.quick-button .mark { height: 27px; font-size: 1rem }
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 17px }
+.tab {
+  background: transparent; border: 0; border-bottom: 3px solid transparent; border-radius: 3px 3px 0 0;
+  padding: 0 12px; color: var(--muted); font-weight: 650;
+}
+.tab[aria-selected="true"] { color: var(--green); border-bottom-color: #357353 }
+.day-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin: 0 0 11px }
+.totals { font-size: .84rem; color: var(--muted); margin: 0 }
+.empty { text-align: center; padding: 21px 10px; font-size: .94rem; line-height: 1.5; color: var(--muted) }
+.empty strong { color: var(--text); display: block; margin-bottom: 3px }
+.list { display: grid; gap: 8px; list-style: none; margin: 0; padding: 0 }
+.record {
+  width: 100%; background: var(--paper); border: 1px solid var(--line); border-radius: 16px;
+  color: var(--text); text-align: left; padding: 11px; display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px;
+}
+.record:hover, .quiet:hover { border-color: #86a58e }
+.record time, .record small { color: var(--muted); font-size: .83rem }
+.record strong, .record small { display: block; overflow-wrap: anywhere; margin-bottom: 2px }
+.record-thumb { width: 33px; height: 33px; object-fit: cover; border-radius: 6px; vertical-align: middle; margin-right: 5px }
+.group { margin: 15px 0 }
+.group h3 { font-size: .9rem; margin: 0 0 8px; color: var(--muted) }
+.storage {
+  color: var(--muted); font-size: .83rem; line-height: 1.48;
+  border-top: 1px solid var(--line); margin-top: 20px; padding-top: 11px;
+}
+.warning { padding: 12px; background: #fff0d9; border: 1px solid #dcbb86; border-radius: 12px; color: #634324 }
+.share-panel p { margin: 6px 0 12px; color: var(--muted); font-size: .92rem; line-height: 1.45 }
+.share-panel h3 { margin: 20px 0 6px; font-size: 1rem }
+.share-panel h2 { margin-bottom: 5px }
+.actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap }
+.primary, .quiet, .danger {
+  padding: 0 13px; border-radius: 11px; font-weight: 700; max-width: 100%;
+}
+.primary { background: var(--green); border: 1px solid var(--green); color: #fff }
+.primary:hover { background: #2a503f }
+.quiet { background: var(--paper); border: 1px solid var(--line); color: var(--text) }
+.danger { background: none; border: 1px solid #dbc3bf; color: #8f3b32 }
+button:disabled { opacity: .55; cursor: default }
+#sheet {
+  padding: 0; background: var(--paper); color: var(--text); border-radius: 23px; border: 1px solid var(--line);
+  width: min(520px, calc(100% - 20px)); max-height: min(90dvh, 800px); overflow-y: auto;
+}
+#sheet::backdrop { background: #091e17a8 }
+.sheet-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; position: sticky; top: 0; z-index: 2;
+  padding: 13px 18px; background: var(--paper); border-bottom: 1px solid var(--line);
+}
+.close { font-size: 1.5rem; padding: 0; width: 44px; min-width: 44px }
+form { padding: 15px 18px max(18px, env(safe-area-inset-bottom)) }
+label, legend { font-weight: 650; font-size: .92rem }
+label.field { display: grid; gap: 6px; min-width: 0 }
+label.field + label.field, .form-section + .form-section { margin-top: 13px }
+input:not([type="radio"]):not([type="checkbox"]), select, textarea {
+  width: 100%; border: 1px solid #cbd8ce; background: #fff; border-radius: 10px; color: var(--text);
+  padding: 8px 10px; font-size: 1rem; min-width: 0;
+}
+input[type="date"], input[type="time"] { appearance: none; -webkit-appearance: none; text-align: left; }
+input::-webkit-date-and-time-value { text-align: left }
+textarea { resize: vertical; min-height: 66px }
+.optional { color: var(--muted); font-weight: 400 }
+.twocol { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-bottom: 14px }
+.twocol label.field + label.field { margin-top: 0 }
+.timing { margin-top: 12px }
+.timing summary { margin-bottom: 2px }
+.timing .twocol:last-child { margin-bottom: 0 }
+.helper { color: var(--muted); font-size: .86rem; margin: 6px 0 }
+.moods { display: flex; flex-wrap: nowrap; gap: clamp(2px, 1.4vw, 7px); margin-bottom: 12px }
+.mood-option { display: grid; place-items: center; position: relative; width: clamp(43px, 13vw, 52px); height: 49px; cursor: pointer; border-radius: 14px }
+.mood-option input { position: absolute; opacity: 0; width: 1px; height: 1px; min-height: 0 }
+.mood-option:has(input:checked) { background: #e2ebe1 }
+.mood-option input:focus-visible + .face { outline: 3px solid #347656; outline-offset: 3px }
+.mood-option input:checked + .face { box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px #35634c }
+.face { --ink: #272d26; display: inline-block; flex: none; width: 31px; height: 31px; position: relative; border-radius: 50%; background: var(--face) }
+.face::before { content: ""; width: 3px; height: 4px; position: absolute; left: 8px; top: 9px; background: var(--ink); border-radius: 50%; box-shadow: 12px 0 var(--ink) }
+.face::after { content: ""; width: 12px; height: 6px; position: absolute; left: 50%; top: 15px; transform: translateX(-50%); border-bottom: 2px solid var(--ink); border-radius: 0 0 10px 10px }
+.face[data-grade="5"] { --face: #278250; --ink: #fff }
+.face[data-grade="5"]::after { background: var(--ink); width: 11px; height: 7px; border: 0; top: 16px }
+.face[data-grade="4"] { --face: #a5d980 }
+.face[data-grade="3"] { --face: #f4d267 }
+.face[data-grade="3"]::after { height: 0; width: 9px; top: 19px; border-radius: 2px }
+.face[data-grade="2"] { --face: #f5a453 }
+.face[data-grade="1"] { --face: #ce4b53; --ink: #fff }
+.face[data-grade="2"]::after, .face[data-grade="1"]::after { top: 17px; border: 0; border-top: 2px solid var(--ink); border-radius: 10px 10px 0 0 }
+.face[data-grade="1"]::after { width: 13px; height: 8px }
+.record .face { transform: scale(.75); margin-right: 2px; vertical-align: middle }
+fieldset { padding: 0; margin: 0; border: 0; min-width: 0 }
+legend { margin-bottom: 6px; padding: 0 }
+.choices { display: flex; flex-wrap: wrap; gap: 6px }
+.choice { position: relative; display: grid; cursor: pointer; }
+.choice input { position: absolute; opacity: 0; width: 1px; height: 1px; min-height: 0 }
+.choice span { display: grid; place-items: center; border-radius: 99px; min-height: 44px; line-height: 1.15; padding: 5px 11px; border: 1px solid #cbd8ce; font-weight: 550 }
+.choice input:checked + span { background: var(--mint); border-color: #658f74; color: #193d2b; }
+.choice input:focus-visible + span { outline: 3px solid #347656; outline-offset: 2px }
+details { margin-top: 12px }
+summary { color: var(--green); font-weight: 650; cursor: pointer; line-height: 44px }
+.photo { margin-top: 9px; margin-bottom: 10px }
+.photo img { display: block; width: min(100%, 240px); max-height: 170px; object-fit: cover; border-radius: 11px; margin: 10px 0 6px }
+.submit { width: 100%; margin-top: 15px; min-height: 48px }
+.error { margin: 10px 0 0; font-size: .9rem; color: #8b352d }
+.toast {
+  position: fixed; z-index: 10; bottom: max(14px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%);
+  max-width: calc(100% - 24px); background: var(--green); color: white; padding: 10px 15px; border-radius: 12px;
+  box-shadow: 0 5px 17px #2223; text-align: center; font-size: .9rem;
+}
+.storage { padding-right: 65px }
+.sloth-launch {
+  position: fixed; z-index: 5; right: max(15px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom));
+  width: 59px; height: 59px; display: grid; place-items: center; padding: 0;
+  border: 1px solid #476b59; border-radius: 50%; background: var(--green); box-shadow: 0 6px 20px #19382e50;
+}
+.sloth-head {
+  position: relative; display: inline-block; flex: none; width: 42px; height: 39px;
+  background: #92674e; border-radius: 50% 51% 43% 45%; transform: rotate(-9deg);
+}
+.sloth-head::before { content: ""; position: absolute; inset: 7px 4px 3px; border-radius: 49% 49% 43% 43%; background: #edcfaa }
+.sloth-eye { position: absolute; top: 12px; width: 12px; height: 9px; background: #ad795d; border-radius: 60%; }
+.sloth-eye::before { content: ""; position: absolute; left: 4px; top: 3px; width: 5px; height: 3px; border-radius: 50%; background: #3b2d27 }
+.sloth-eye.left { left: 5px; transform: rotate(-17deg) }
+.sloth-eye.right { right: 5px; transform: rotate(17deg) }
+.sloth-nose { position: absolute; top: 20px; left: 17px; width: 8px; height: 5px; border-radius: 50%; background: #493126 }
+.sloth-smile { position: absolute; top: 25px; left: 15px; width: 12px; height: 6px; border-bottom: 2px solid #68493a; border-radius: 0 0 50% 50% }
+.sloth-launch:hover .sloth-head { transform: rotate(0deg) }
+#chat-sheet {
+  padding: 0; border: 1px solid var(--line); border-radius: 22px; color: var(--text); background: var(--paper);
+  width: min(460px, calc(100% - 20px)); height: min(650px, calc(100dvh - 30px)); max-height: calc(100dvh - 20px);
+  margin: auto 14px 14px auto; overflow: hidden;
+}
+#chat-sheet[open] { display: grid; grid-template-rows: auto minmax(0,1fr) auto }
+#chat-sheet::backdrop { background: #091e1777 }
+.chat-heading { display: flex; align-items: center; gap: 10px; margin-right: auto }
+.chat-mode { display: block; font-size: .82rem; color: var(--muted); margin-top: 3px }
+.messages { padding: 13px 15px; display: flex; gap: 9px; flex-direction: column; overflow-y: auto }
+.message { margin: 0; padding: 9px 11px; border-radius: 13px; background: #eef1e9; width: fit-content; max-width: 94%; font-size: .94rem; line-height: 1.43; white-space: pre-wrap; overflow-wrap: anywhere }
+.message.yours { align-self: end; background: var(--mint) }
+.chat-form { border-top: 1px solid var(--line); padding: 9px 13px max(12px, env(safe-area-inset-bottom)); }
+.chat-form .actions { flex-wrap: nowrap }
+.chat-form textarea { min-height: 45px; max-height: 96px; resize: none }
+.chat-form .helper { margin: 8px 0 0; font-size: .81rem }
+.chat-consent { margin: 0 0 8px; display: flex; align-items: center; gap: 7px; min-height: 44px }
+.chat-consent input { width: 18px; height: 18px; min-height: 0; accent-color: var(--green) }
+@media (max-width: 520px) {
+  #sheet { width: 100%; max-width: 100%; max-height: 92dvh; margin: auto 0 0; border-radius: 22px 22px 0 0; }
+  #chat-sheet { width: 100%; max-width: 100%; height: 85dvh; margin: auto 0 0; border-radius: 22px 22px 0 0; }
+}
+@media (max-width: 400px) {
+  .quick-button { font-size: .75rem }
+}
+@media (max-width: 370px) {
+  .heading, main { padding-inline: 13px }
+  .card { padding: 13px }
+  .quick-button { font-size: .72rem }
+}
+</style>
+</head>
+<body>
+<header class="header">
+  <div class="heading">
+    <div class="date" id="fecha-hoy"></div>
+    <h1>Diario diario</h1>
+    <p>Qué comiste y cómo te sentiste.</p>
+  </div>
+</header>
+<main>
+  <p id="storage-warning" class="warning" role="status" hidden></p>
+  <section class="card quick" aria-labelledby="quick-title">
+    <h2 id="quick-title">Registrar</h2>
+    <div class="quick-actions">
+      <button class="quick-button comida" data-add="comida" disabled><span class="mark" aria-hidden="true">🍴</span>Comida</button>
+      <button class="quick-button estado" data-add="estado" disabled><span class="mark" aria-hidden="true">♡</span>Estado</button>
+      <button class="quick-button bano" data-add="bano" disabled><span class="mark" aria-hidden="true">◷</span>Baño</button>
+      <button class="quick-button agua" data-add="agua" disabled><span class="mark" aria-hidden="true">💧</span>Agua</button>
+      <button class="quick-button actividad" data-add="actividad" disabled><span class="mark" aria-hidden="true">⚡</span>Actividad</button>
+      <button class="quick-button sueno" data-add="sueno" disabled><span class="mark" aria-hidden="true">☾</span>Sueño</button>
+      <button class="quick-button medicacion" data-add="medicacion" disabled><span class="mark" aria-hidden="true">✚</span>Medicación</button>
+      <button class="quick-button presion" data-add="presion" disabled><span class="mark" aria-hidden="true">♥</span>Presión</button>
+    </div>
+  </section>
+  <div class="tabs" role="tablist" aria-label="Registros">
+    <button id="tab-hoy" type="button" class="tab" role="tab" aria-controls="hoy" aria-selected="true">Hoy</button>
+    <button id="tab-historial" type="button" class="tab" role="tab" aria-controls="historial" aria-selected="false" tabindex="-1">Historial</button>
+    <button id="tab-exportar" type="button" class="tab" role="tab" aria-controls="exportar" aria-selected="false" tabindex="-1">Exportar</button>
+  </div>
+  <section id="hoy" role="tabpanel" aria-labelledby="tab-hoy">
+    <div class="day-head"><h2>Tu día</h2><p id="today-count" class="totals"></p></div>
+    <div id="today-list"><div class="card empty">Cargando registros…</div></div>
+  </section>
+  <section id="historial" role="tabpanel" aria-labelledby="tab-historial" hidden>
+    <div class="day-head"><h2>Historial</h2><p id="history-count" class="totals"></p></div>
+    <div id="history-list"></div>
+  </section>
+  <section id="exportar" class="card share-panel" role="tabpanel" aria-labelledby="tab-exportar" hidden>
+    <h2>Historial para compartir</h2>
+    <p>Descargá un JSON con todos tus registros y notas. Las fotos quedan en el diario.</p>
+    <div class="actions">
+      <button id="export-json" class="primary" type="button" disabled>Descargar JSON</button>
+      <button id="share-json" class="quiet" type="button" hidden>Compartir JSON</button>
+    </div>
+    <h3>Copia de seguridad</h3>
+    <p>Guardá tus registros con fotos para recuperarlos en otra instalación.</p>
+    <div class="actions">
+      <button id="export-backup" class="quiet" type="button" disabled>Descargar copia</button>
+      <button id="import-backup" class="quiet" type="button" disabled>Importar copia</button>
+      <input type="file" id="backup-file" accept=".json,application/json" hidden>
+    </div>
+    <details>
+      <summary>Texto para pedir un análisis a la IA</summary>
+      <p id="ai-prompt">Resumí los registros por día. Buscá coincidencias repetidas entre comidas, horarios y estados registrados, teniendo en cuenta el agua, la actividad, el sueño, la medicación y las visitas al baño. Citá ejemplos y casos que no sigan el mismo patrón. Distinguí «sin molestias registradas» de «sin datos». Separá observaciones e hipótesis y evitá atribuir causas o diagnosticar. Prepará un resumen breve para una consulta.</p>
+      <button id="copy-prompt" class="quiet" type="button">Copiar texto</button>
+    </details>
+  </section>
+  <footer id="storage-note" class="storage">Tus registros quedan en este navegador. Vos elegís si los compartís.</footer>
+  <noscript><p class="warning">Abrí el archivo en un navegador con JavaScript para usar el diario.</p></noscript>
+</main>
+<button type="button" id="open-chat" class="sloth-launch" aria-label="Abrir chat con el perezoso" aria-haspopup="dialog" disabled><span class="sloth-head" aria-hidden="true"><i class="sloth-eye left"></i><i class="sloth-eye right"></i><i class="sloth-nose"></i><i class="sloth-smile"></i></span></button>
+<dialog id="sheet" aria-labelledby="sheet-title">
+  <div class="sheet-head">
+    <h2 id="sheet-title"></h2>
+    <button type="button" class="quiet close" id="close-sheet" aria-label="Cerrar">×</button>
+  </div>
+  <form id="entry">
+    <div id="fields-comida" hidden>
+      <label class="field">¿Qué comiste o tomaste?<input name="alimento" type="text" maxlength="180" placeholder="Ej. Pollo con arroz"></label>
+      <label class="field">Momento<select name="momento">
+        <option value="">Elegí si querés</option><option>Desayuno</option><option>Almuerzo</option><option>Merienda</option><option>Cena</option><option>Entre comidas</option>
+      </select></label>
+      <fieldset class="form-section" style="margin-top:13px">
+        <legend>Cantidad</legend>
+        <div class="choices">
+          <label class="choice"><input type="radio" name="cantidad" value="Poco"><span>Poco</span></label>
+          <label class="choice"><input type="radio" name="cantidad" value="Mediano"><span>Mediano</span></label>
+          <label class="choice"><input type="radio" name="cantidad" value="Mucho"><span>Mucho</span></label>
+        </div>
+      </fieldset>
+      <fieldset class="form-section rating" data-rating="comida"><legend>¿Cómo te cayó?</legend><div class="moods"></div></fieldset>
+      <details id="meal-details">
+        <summary>Tipo, ingredientes o foto</summary>
+        <label class="field">Tipo<select name="tipoComida">
+          <option value="">Elegí si querés</option><option>Casera</option><option>De afuera / delivery</option><option>Snack</option><option>Bebida</option><option>Otra</option>
+        </select></label>
+        <label class="field">Ingredientes <span class="optional">(opcional)</span><input name="ingredientes" maxlength="350" placeholder="Ej. Arroz, pollo, salsa"></label>
+        <div class="photo">
+          <div class="actions">
+            <button type="button" id="take-photo" class="quiet">Sacar foto</button>
+            <button type="button" id="pick-photo" class="quiet">Elegir foto</button>
+          </div>
+          <input type="file" id="camera-file" accept="image/*" capture="environment" hidden>
+          <input type="file" id="gallery-file" accept="image/*" hidden>
+          <p id="photo-status" class="error" role="status" hidden></p>
+          <div id="photo-preview" hidden>
+            <img id="preview-img" alt="Foto de la comida">
+            <button id="remove-photo" type="button" class="quiet">Quitar foto</button>
+          </div>
+        </div>
+      </details>
+    </div>
+    <div id="fields-estado" hidden>
+      <fieldset class="rating" data-rating="estado"><legend>¿Cómo te sentís?</legend><div class="moods"></div></fieldset>
+      <label class="field">¿Qué sentís? <span class="optional">(opcional)</span><textarea name="detalleEstado" rows="2" maxlength="800" placeholder="Ej. Un poco de hinchazón después de comer"></textarea></label>
+      <details id="state-details">
+        <summary>Agregar detalles</summary>
+        <fieldset class="form-section">
+          <legend>Molestias</legend>
+          <div class="choices" id="symptom-choices"></div>
+        </fieldset>
+        <fieldset class="form-section">
+          <legend>Intensidad</legend>
+          <div class="choices">
+            <label class="choice"><input type="radio" name="intensidad" value="Leve"><span>Leve</span></label>
+            <label class="choice"><input type="radio" name="intensidad" value="Moderada"><span>Moderada</span></label>
+            <label class="choice"><input type="radio" name="intensidad" value="Fuerte"><span>Fuerte</span></label>
+          </div>
+        </fieldset>
+        <label class="field form-section" style="margin-top:13px">Comida relacionada <span class="optional">(opcional)</span><select name="comidaId" id="meal-link"></select></label>
+      </details>
+    </div>
+    <div id="fields-bano" hidden>
+      <fieldset class="rating" data-rating="bano"><legend>¿Cómo fue?</legend><div class="moods"></div></fieldset>
+      <label class="field">¿Querés anotar algo? <span class="optional">(opcional)</span><textarea name="detalleBano" rows="2" maxlength="800" placeholder="Lo que quieras recordar"></textarea></label>
+      <p id="old-bath" class="helper" hidden></p>
+    </div>
+    <div id="fields-agua" hidden>
+      <label class="field">Cantidad (ml)<input name="cantidadMl" type="number" inputmode="numeric" min="1" max="20000" step="1"></label>
+      <div class="choices" style="margin-top:7px" aria-label="Cantidades rápidas">
+        <button type="button" class="quiet" data-volume="250">250 ml</button>
+        <button type="button" class="quiet" data-volume="500">500 ml</button>
+        <button type="button" class="quiet" data-volume="750">750 ml</button>
+        <button type="button" class="quiet" data-volume="1000">1 L</button>
+        <button type="button" class="quiet" data-volume="1500">1,5 L</button>
+        <button type="button" class="quiet" data-volume="2000">2 L</button>
+      </div>
+    </div>
+    <div id="fields-actividad" hidden>
+      <label class="field">Actividad<input name="actividad" type="text" maxlength="180" placeholder="Ej. Caminata"></label>
+      <div class="choices" style="margin:7px 0 13px" aria-label="Actividades rápidas">
+        <button type="button" class="quiet" data-activity="Caminata">Caminata</button>
+        <button type="button" class="quiet" data-activity="Entrenamiento">Entrenamiento</button>
+        <button type="button" class="quiet" data-activity="Bici">Bici</button>
+      </div>
+      <details id="more-activities" style="margin:0 0 12px">
+        <summary>Más actividades</summary>
+        <div class="choices">
+          <button type="button" class="quiet" data-activity="Correr">Correr</button>
+          <button type="button" class="quiet" data-activity="Gimnasio">Gimnasio</button>
+          <button type="button" class="quiet" data-activity="Yoga">Yoga</button>
+          <button type="button" class="quiet" data-activity="Pilates">Pilates</button>
+          <button type="button" class="quiet" data-activity="Baile">Baile</button>
+          <button type="button" class="quiet" data-activity="Natación">Natación</button>
+          <button type="button" class="quiet" data-activity="Estiramientos">Estiramientos</button>
+          <button type="button" class="quiet" data-activity="Deporte en equipo">Deporte en equipo</button>
+        </div>
+      </details>
+      <label id="activity-duration" class="field">Duración (min) <span class="optional">(opcional)</span><input name="duracionMin" type="number" inputmode="numeric" min="1" max="1440" step="1"></label>
+      <fieldset class="form-section">
+        <legend>Esfuerzo</legend>
+        <div class="choices">
+          <label class="choice"><input type="radio" name="esfuerzo" value="Suave"><span>Suave</span></label>
+          <label class="choice"><input type="radio" name="esfuerzo" value="Moderado"><span>Moderado</span></label>
+          <label class="choice"><input type="radio" name="esfuerzo" value="Intenso"><span>Intenso</span></label>
+        </div>
+      </fieldset>
+      <fieldset class="form-section rating" data-rating="actividad"><legend>¿Cómo te sentiste?</legend><div class="moods"></div></fieldset>
+    </div>
+    <div id="fields-sueno" hidden>
+      <fieldset class="rating" data-rating="sueno"><legend>¿Cómo dormiste?</legend><div class="moods"></div></fieldset>
+      <label class="field">¿Cuántas veces te despertaste?<input name="despertares" type="number" inputmode="numeric" min="0" max="99" step="1" placeholder="Ej. 0"></label>
+      <details id="sleep-time">
+        <summary>Hora en que te dormiste</summary>
+        <div class="twocol">
+          <label class="field">Fecha de inicio<input type="date" name="fechaInicio"></label>
+          <label class="field">Hora de inicio<input type="time" name="horaInicio"></label>
+        </div>
+      </details>
+    </div>
+    <div id="fields-medicacion" hidden>
+      <label class="field">¿Qué tomaste?<input name="medicamento" type="text" maxlength="180" placeholder="Nombre"></label>
+      <label class="field">Dosis <span class="optional">(opcional)</span><input name="dosis" type="text" maxlength="100" placeholder="Ej. 1 comprimido"></label>
+    </div>
+    <div id="fields-presion" hidden>
+      <fieldset>
+        <legend>Presión arterial (mmHg)</legend>
+        <div class="twocol">
+          <label class="field">Máxima<input name="sistolica" type="number" inputmode="numeric" min="1" max="999" step="1" placeholder="120"></label>
+          <label class="field">Mínima<input name="diastolica" type="number" inputmode="numeric" min="1" max="999" step="1" placeholder="80"></label>
+        </div>
+      </fieldset>
+    </div>
+    <details id="timing" class="timing">
+      <summary id="timing-title">Fecha y hora</summary>
+      <div class="twocol">
+        <label class="field"><span id="date-label">Fecha</span><input type="date" name="fecha" required></label>
+        <label class="field"><span id="time-label">Hora</span><input type="time" name="hora" required></label>
+      </div>
+      <label id="range-toggle" class="choice">
+        <input type="checkbox" id="use-range"><span>Registrar una franja horaria</span>
+      </label>
+      <div id="range-fields" class="twocol" style="margin-top:8px" hidden>
+        <label class="field">Fecha de fin<input type="date" name="fechaFin"></label>
+        <label class="field">Hora de fin<input type="time" name="horaFin"></label>
+      </div>
+    </details>
+    <details id="entry-details">
+      <summary>Agregar una nota</summary>
+      <label class="field">Nota <span class="optional">(opcional)</span><textarea name="nota" rows="2" maxlength="800" placeholder="Algo que quieras recordar"></textarea></label>
+    </details>
+    <p id="form-error" class="error" role="alert" hidden></p>
+    <button type="submit" class="primary submit" id="save-entry">Guardar</button>
+    <button type="button" class="danger" id="delete-entry" style="margin-top:9px" hidden>Eliminar registro</button>
+  </form>
+</dialog>
+<dialog id="chat-sheet" aria-labelledby="chat-title">
+  <div class="sheet-head">
+    <div class="chat-heading">
+      <span class="sloth-head" aria-hidden="true"><i class="sloth-eye left"></i><i class="sloth-eye right"></i><i class="sloth-nose"></i><i class="sloth-smile"></i></span>
+      <div><h2 id="chat-title">Perezoso</h2><span id="chat-mode" class="chat-mode">En este dispositivo</span></div>
+    </div>
+    <button type="button" id="close-chat" class="quiet close" aria-label="Cerrar chat">×</button>
+  </div>
+  <div id="chat-messages" class="messages" role="log" aria-label="Conversación">
+    <p class="message">¿Qué pinta comer? Puedo buscar en tu diario platos que anotaste que te cayeron bien.</p>
+  </div>
+  <form id="chat-form" class="chat-form">
+    <label id="chat-consent" class="chat-consent" hidden><input id="share-meals" type="checkbox">Incluir comidas recientes y sus caritas</label>
+    <div class="actions">
+      <textarea id="chat-input" aria-label="Mensaje para el perezoso" rows="1" maxlength="600" placeholder="¿Qué puedo almorzar?" required></textarea>
+      <button type="submit" id="chat-send" class="primary">Enviar</button>
+    </div>
+    <p id="chat-info" class="helper">Las sugerencias se hacen con los registros de este dispositivo.</p>
+    <button type="button" id="chat-connect" class="quiet">Configurar GPT</button>
+  </form>
+</dialog>
+<dialog id="chat-settings" aria-labelledby="chat-settings-title" style="border:1px solid var(--line);border-radius:20px;width:min(420px,calc(100% - 24px));padding:0">
+  <div class="sheet-head"><h2 id="chat-settings-title">Configurar GPT</h2><button type="button" id="close-chat-settings" class="quiet close" aria-label="Cerrar configuración">×</button></div>
+  <form id="chat-settings-form">
+    <label class="field">Dirección del Worker<input id="worker-url" type="url" placeholder="https://nombre.cuenta.workers.dev" required></label>
+    <label class="field">Código de acceso del diario<input id="worker-code" type="password" autocomplete="off" maxlength="200" required></label>
+    <p class="helper">Usá el código de acceso del diario. La clave de OpenAI se guarda en Cloudflare.</p>
+    <p id="worker-status" class="helper" role="status"></p>
+    <div class="actions"><button id="save-worker" type="submit" class="primary">Conectar</button><button type="button" id="forget-worker" class="quiet" hidden>Desconectar</button></div>
+  </form>
+</dialog>
+<div id="toast" class="toast" role="status" hidden></div>
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const appName = "diario-digestivo";
+const dbKey = appName + "-entradas-v1";
+const types = {
+  comida: { label: "Comida", icon: "🍴", title: "Registrar comida" },
+  estado: { label: "Estado", icon: "♡", title: "Registrar estado" },
+  bano: { label: "Baño", icon: "◷", title: "Registrar visita al baño" },
+  agua: { label: "Agua", icon: "💧", title: "Registrar agua" },
+  actividad: { label: "Actividad", icon: "⚡", title: "Registrar actividad" },
+  sueno: { label: "Sueño", icon: "☾", title: "Registrar sueño" },
+  medicacion: { label: "Medicación", icon: "✚", title: "Registrar medicación" },
+  presion: { label: "Presión", icon: "♥", title: "Registrar presión" }
+};
+const moodLabels = { 5: "Muy bien", 4: "Bien", 3: "Regular", 2: "Mal", 1: "Muy mal" };
+const legacyMealRatings = { Bien: 4, Regular: 3, Mal: 2 };
+const ratedTypes = ["comida", "estado", "bano", "actividad", "sueno"];
+const rangeTypes = ["agua", "actividad"];
+const symptoms = ["Dolor de panza", "Hinchazón", "Náuseas", "Gases", "Acidez", "Otro"];
+const dateFormat = new Intl.DateTimeFormat("es-AR", { weekday: "long", day: "numeric", month: "long" });
+const form = $("entry");
+const sheet = $("sheet");
+let records = [];
+let storage;
+let activeType;
+let editingId;
+let photo = "";
+let readingPhoto = false;
+let formGeneration = 0;
+let toastTimer;
+let displayedDay;
+let saving = false;
+
+function node(tag, className, value) {
+  const element = document.createElement(tag);
+  if (className) element.className = className;
+  if (value !== undefined) element.textContent = value;
+  return element;
+}
+
+function fromLocalDate(date) {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString();
+  return { fecha: local.slice(0, 10), hora: local.slice(11, 16) };
+}
+
+function dateLabel(day) {
+  const date = new Date(day + "T12:00:00");
+  return Number.isNaN(date.getTime()) ? day : dateFormat.format(date);
+}
+
+function minuteSpan(startDate, startTime, endDate, endTime) {
+  return ((new Date(endDate + "T" + endTime)) - (new Date(startDate + "T" + startTime))) / 60000;
+}
+
+function durationLabel(minutes) {
+  if (!minutes) return "";
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return [hours && hours + " h", rest && rest + " min"].filter(Boolean).join(" ");
+}
+
+function face(value) {
+  const item = node("span", "face");
+  item.dataset.grade = value;
+  item.setAttribute("aria-hidden", "true");
+  return item;
+}
+
+function normalizeName(value) {
+  return value.toLocaleLowerCase("es-AR").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+}
+
+function sortedEntries(entries) {
+  return [...entries].sort((a, b) => (b.fecha + b.hora).localeCompare(a.fecha + a.hora) || b.id.localeCompare(a.id));
+}
+
+async function openIndexedDB() {
+  const db = await new Promise((resolve, reject) => {
+    const request = indexedDB.open(appName, 1);
+    request.onupgradeneeded = () => request.result.createObjectStore("entradas", { keyPath: "id" });
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+    request.onblocked = () => reject(new Error("Storage blocked"));
+  });
+  db.onversionchange = () => db.close();
+
+  function transact(mode, action) {
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("entradas", mode);
+      const result = action(tx.objectStore("entradas"));
+      tx.oncomplete = () => resolve(result?.result);
+      tx.onabort = () => reject(tx.error || new Error("Storage aborted"));
+    });
+  }
+  return {
+    kind: "indexedDB",
+    read: () => transact("readonly", (store) => store.getAll()),
+    put: (entries) => transact("readwrite", (store) => { entries.forEach((entry) => store.put(entry)); }),
+    del: (id) => transact("readwrite", (store) => store.delete(id))
+  };
+}
+
+function openLocalStorage() {
+  const probe = dbKey + "-prueba";
+  localStorage.setItem(probe, "1");
+  localStorage.removeItem(probe);
+  function read() { return JSON.parse(localStorage.getItem(dbKey) || "[]"); }
+  function write(entries) { localStorage.setItem(dbKey, JSON.stringify(entries)); }
+  return {
+    kind: "localStorage",
+    read,
+    put(entries) {
+      const updated = new Map(read().map((entry) => [entry.id, entry]));
+      entries.forEach((entry) => updated.set(entry.id, entry));
+      write([...updated.values()]);
+    },
+    del(id) { write(read().filter((entry) => entry.id !== id)); }
+  };
+}
+
+async function readEntries() {
+  return (await storage.read()).map((entry) => {
+    if (entry.tipo === "sintoma") return { ...entry, tipo: "estado" };
+    if (entry.tipo === "comida" && !entry.valoracion && Object.hasOwn(legacyMealRatings, entry.sensacion)) {
+      return { ...entry, valoracion: legacyMealRatings[entry.sensacion] };
+    }
+    return entry;
+  });
+}
+
+async function init() {
+  try {
+    storage = await openIndexedDB();
+    records = await readEntries();
+  } catch {
+    try {
+      storage = openLocalStorage();
+      records = await readEntries();
+    } catch {
+      storage = null;
+    }
+  }
+  if (!storage) {
+    $("storage-warning").textContent = "Este navegador no permite guardar el diario. Podés probarlo y exportar lo que cargues antes de cerrar.";
+    $("storage-warning").hidden = false;
+    $("storage-note").textContent = "Modo de prueba. Los registros se pierden al cerrar o recargar.";
+  } else if (location.protocol === "file:" || location.protocol === "content:") {
+    $("storage-note").textContent = "Guardado local en este navegador. Si abriste el diario desde un archivo, hacé una copia antes de moverlo o abrirlo de otra forma.";
+  }
+  document.querySelectorAll("[data-add]").forEach((button) => { button.disabled = false; });
+  $("open-chat").disabled = false;
+  $("import-backup").disabled = false;
+  render();
+}
+
+function showToast(message) {
+  clearTimeout(toastTimer);
+  $("toast").textContent = message;
+  $("toast").hidden = false;
+  toastTimer = setTimeout(() => { $("toast").hidden = true; }, 3300);
+}
+
+function updateDay() {
+  displayedDay = fromLocalDate(new Date()).fecha;
+  $("fecha-hoy").textContent = dateLabel(displayedDay);
+}
+
+function emptyState(title, detail) {
+  const box = node("div", "card empty");
+  box.append(node("strong", "", title), node("span", "", detail));
+  return box;
+}
+
+function recordList(entries) {
+  const list = node("ul", "list");
+  for (const entry of entries) {
+    const type = types[entry.tipo];
+    const headings = {
+      comida: entry.alimento,
+      estado: entry.sintomas?.join(", ") || type.label,
+      agua: entry.cantidadMl ? entry.cantidadMl + " ml de agua" : type.label,
+      actividad: entry.actividad,
+      medicacion: entry.medicamento,
+      presion: entry.sistolica + "/" + entry.diastolica + " mmHg"
+    };
+    const details = {
+      comida: [entry.momento, entry.cantidad, entry.sensacion ? "Te cayó " + entry.sensacion.toLowerCase() : ""],
+      estado: [moodLabels[entry.valoracion], entry.intensidad, entry.nota],
+      bano: [moodLabels[entry.valoracion], entry.nota, entry.consistencia, ...(entry.molestias || [])],
+      agua: [entry.nota],
+      actividad: [durationLabel(entry.duracionMin), entry.esfuerzo, moodLabels[entry.valoracion], entry.nota],
+      sueno: [moodLabels[entry.valoracion], durationLabel(entry.duracionMin), entry.despertares == null ? "" : entry.despertares + (entry.despertares === 1 ? " despertar" : " despertares"), entry.nota],
+      medicacion: [entry.dosis, entry.nota],
+      presion: [type.label, entry.nota]
+    };
+    const item = node("li");
+    const button = node("button", "record");
+    button.type = "button";
+    const icon = entry.valoracion ? face(entry.valoracion) : node("span", "mark " + entry.tipo, type.icon);
+    icon.setAttribute("aria-hidden", "true");
+    const copy = node("span");
+    copy.append(node("strong", "", headings[entry.tipo] || type.label));
+    const summary = (details[entry.tipo] || []).filter(Boolean).join(" · ");
+    if (summary) copy.append(node("small", "", summary));
+    const tail = node("span");
+    if (entry.foto) {
+      const image = node("img", "record-thumb");
+      image.src = entry.foto;
+      image.alt = "";
+      image.loading = "lazy";
+      tail.append(image);
+    }
+    const time = node("time", "", entry.hora);
+    time.dateTime = entry.fecha + "T" + entry.hora;
+    tail.append(time);
+    if (entry.horaFin) tail.append(node("small", "", "a las " + entry.horaFin));
+    button.append(icon, copy, tail);
+    button.addEventListener("click", () => openForm(entry.tipo, entry, button));
+    item.append(button);
+    list.append(item);
+  }
+  return list;
+}
+
+function countFor(entries, type, singular, plural) {
+  const count = entries.filter((entry) => entry.tipo === type).length;
+  return count + " " + (count === 1 ? singular : plural);
+}
+
+function render() {
+  updateDay();
+  const ordered = sortedEntries(records);
+  const today = ordered.filter((entry) => entry.fecha === displayedDay);
+  $("today-count").textContent = [
+    countFor(today, "comida", "comida", "comidas"),
+    countFor(today, "bano", "visita al baño", "visitas al baño"),
+    today.some((entry) => entry.tipo === "agua") && today.reduce((total, entry) => total + (entry.cantidadMl || 0), 0) + " ml de agua"
+  ].filter(Boolean).join(" · ");
+  $("today-list").replaceChildren(today.length ? recordList(today) : emptyState("Todavía no hay registros hoy", "Elegí qué querés registrar arriba."));
+  $("history-count").textContent = ordered.length + (ordered.length === 1 ? " registro" : " registros");
+  const groups = new Map();
+  for (const entry of ordered) {
+    if (!groups.has(entry.fecha)) groups.set(entry.fecha, []);
+    groups.get(entry.fecha).push(entry);
+  }
+  const history = document.createDocumentFragment();
+  for (const [day, entries] of groups) {
+    const group = node("section", "group");
+    group.append(node("h3", "", dateLabel(day) + " · " + countFor(entries, "bano", "visita al baño", "visitas al baño")), recordList(entries));
+    history.append(group);
+  }
+  if (!groups.size) history.append(emptyState("Tu historial está vacío", "Acá vas a encontrar tus registros por día."));
+  $("history-list").replaceChildren(history);
+  $("export-json").disabled = !records.length;
+  $("export-backup").disabled = !records.length;
+  $("share-json").hidden = !navigator.canShare || !navigator.share || !records.length;
+}
+
+const tabs = [...document.querySelectorAll('[role="tab"]')];
+function selectTab(tab, focus = false) {
+  for (const button of tabs) {
+    const selected = button === tab;
+    button.setAttribute("aria-selected", String(selected));
+    button.tabIndex = selected ? 0 : -1;
+    $(button.getAttribute("aria-controls")).hidden = !selected;
+  }
+  if (focus) tab.focus();
+}
+
+tabs.forEach((tab, index) => {
+  tab.addEventListener("click", () => selectTab(tab));
+  tab.addEventListener("keydown", (event) => {
+    const target = { ArrowLeft: (index + tabs.length - 1) % tabs.length, ArrowRight: (index + 1) % tabs.length, Home: 0, End: tabs.length - 1 }[event.key];
+    if (target === undefined) return;
+    event.preventDefault();
+    selectTab(tabs[target], true);
+  });
+});
+
+for (const fieldset of document.querySelectorAll("[data-rating]")) {
+  const { rating } = fieldset.dataset;
+  for (const value of [5, 4, 3, 2, 1]) {
+    const label = node("label", "mood-option");
+    label.title = moodLabels[value];
+    const input = node("input");
+    input.type = "radio";
+    input.name = "valoracion-" + rating;
+    input.value = value;
+    input.setAttribute("aria-label", moodLabels[value]);
+    label.append(input, face(value));
+    fieldset.querySelector(".moods").append(label);
+  }
+}
+
+for (const symptom of symptoms) {
+  const label = node("label", "choice");
+  const checkbox = node("input");
+  checkbox.type = "checkbox";
+  checkbox.name = "sintomas";
+  checkbox.value = symptom;
+  label.append(checkbox, node("span", "", symptom));
+  $("symptom-choices").append(label);
+}
+
+function setField(name, value) {
+  const field = form.elements.namedItem(name);
+  if (field && value != null) field.value = value;
+}
+
+function setChecked(name, values) {
+  form.querySelectorAll('input[name="' + name + '"]').forEach((input) => {
+    input.checked = (values || []).includes(input.value);
+  });
+}
+
+function updatePhoto() {
+  $("photo-preview").hidden = !photo;
+  if (photo) $("preview-img").src = photo;
+  else $("preview-img").removeAttribute("src");
+}
+
+function updateRange() {
+  const supported = rangeTypes.includes(activeType);
+  const ranged = supported && $("use-range").checked;
+  $("range-toggle").hidden = !supported;
+  $("range-fields").hidden = !ranged;
+  $("range-fields").querySelectorAll("input").forEach((input) => { input.disabled = !ranged; });
+  $("activity-duration").hidden = ranged;
+  form.elements.duracionMin.disabled = activeType !== "actividad" || ranged;
+  $("date-label").textContent = ranged ? "Fecha de inicio" : activeType === "sueno" ? "Fecha de despertar" : "Fecha";
+  $("time-label").textContent = ranged ? "Hora de inicio" : activeType === "sueno" ? "Hora de despertar" : "Hora";
+  updateTimeLabel();
+}
+
+function updateTimeLabel() {
+  const { hora, horaFin } = form.elements;
+  const times = [hora.value, $("use-range").checked && horaFin.value].filter(Boolean).join(" a ");
+  const label = activeType === "sueno" ? "Despertar" : rangeTypes.includes(activeType) ? "Hora o franja" : "Fecha y hora";
+  $("timing-title").textContent = [label, times].filter(Boolean).join(" · ");
+}
+
+function openForm(type, entry = null) {
+  formGeneration += 1;
+  readingPhoto = false;
+  saving = false;
+  $("save-entry").disabled = false;
+  form.reset();
+  activeType = type;
+  editingId = entry?.id;
+  $("sheet-title").textContent = entry ? "Editar " + types[type].label.toLowerCase() : types[type].title;
+  $("form-error").hidden = true;
+  $("photo-status").hidden = true;
+  $("delete-entry").hidden = !entry;
+  const now = fromLocalDate(new Date());
+  setField("fecha", entry?.fecha || now.fecha);
+  setField("hora", entry?.hora || now.hora);
+  Object.keys(types).forEach((kind) => {
+    const section = $("fields-" + kind);
+    section.hidden = kind !== type;
+    section.querySelectorAll("input,select,textarea").forEach((input) => { input.disabled = kind !== type; });
+  });
+  form.elements.alimento.required = type === "comida";
+  form.elements.actividad.required = type === "actividad";
+  form.elements.medicamento.required = type === "medicacion";
+  form.elements.cantidadMl.required = type === "agua";
+  for (const name of ["sistolica", "diastolica"]) form.elements[name].required = type === "presion";
+  $("more-activities").open = false;
+  const inlineNote = type === "estado" || type === "bano";
+  $("entry-details").hidden = inlineNote;
+  $("timing").open = Boolean(entry?.horaFin);
+  $("use-range").checked = Boolean(entry?.horaFin);
+  setField("fechaFin", entry?.fechaFin || entry?.fecha || now.fecha);
+  setField("horaFin", entry?.horaFin || "");
+  updateRange();
+  const meals = sortedEntries(records.filter((item) => item.tipo === "comida"));
+  const options = [new Option("Sin vincular", ""), ...meals.map((meal) => new Option(meal.fecha.slice(8) + "/" + meal.fecha.slice(5, 7) + " " + meal.hora + " · " + meal.alimento, meal.id))];
+  if (entry?.comidaId && !meals.some((meal) => meal.id === entry.comidaId)) options.push(new Option("Comida eliminada", entry.comidaId));
+  $("meal-link").replaceChildren(...options);
+  $("meal-link").parentElement.hidden = options.length === 1;
+  if (type === "agua") setField("cantidadMl", entry?.cantidadMl ?? 250);
+  if (type === "sueno") {
+    const wake = new Date((entry?.fecha || now.fecha) + "T" + (entry?.hora || now.hora));
+    if (wake.getHours() < 14) wake.setDate(wake.getDate() - 1);
+    setField("fechaInicio", entry?.fechaInicio || fromLocalDate(wake).fecha);
+    setField("horaInicio", entry?.horaInicio);
+    setField("despertares", entry?.despertares);
+    $("sleep-time").open = Boolean(entry?.horaInicio);
+  }
+  if (entry) {
+    if (ratedTypes.includes(type)) setChecked("valoracion-" + type, [String(entry.valoracion)]);
+    if (!inlineNote) setField("nota", entry.nota);
+    if (type === "comida") {
+      for (const name of ["alimento", "momento", "cantidad", "tipoComida", "ingredientes"]) setField(name, entry[name]);
+    }
+    if (type === "estado") {
+      setField("detalleEstado", entry.nota);
+      setField("intensidad", entry.intensidad);
+      setField("comidaId", entry.comidaId);
+      setChecked("sintomas", entry.sintomas);
+    }
+    if (type === "bano") setField("detalleBano", entry.nota);
+    if (type === "actividad") for (const name of ["actividad", "duracionMin", "esfuerzo"]) setField(name, entry[name]);
+    if (type === "medicacion") for (const name of ["medicamento", "dosis"]) setField(name, entry[name]);
+    if (type === "presion") for (const name of ["sistolica", "diastolica"]) setField(name, entry[name]);
+  }
+  const oldBath = [entry?.consistencia, ...(entry?.molestias || [])].filter(Boolean);
+  $("old-bath").hidden = !oldBath.length;
+  $("old-bath").textContent = oldBath.join(" · ");
+  $("state-details").open = Boolean(entry?.sintomas?.length || entry?.intensidad || entry?.comidaId);
+  photo = entry?.foto || "";
+  updatePhoto();
+  $("meal-details").open = Boolean(photo || entry?.ingredientes || entry?.tipoComida);
+  $("entry-details").open = Boolean(entry?.nota);
+  sheet.showModal();
+  $("close-sheet").focus({ preventScroll: true });
+  sheet.scrollTop = 0;
+}
+
+document.querySelectorAll("[data-add]").forEach((button) => button.addEventListener("click", () => openForm(button.dataset.add)));
+$("use-range").addEventListener("change", () => {
+  if ($("use-range").checked && !form.elements.horaFin.value) setField("fechaFin", form.elements.fecha.value);
+  updateRange();
+});
+form.elements.fecha.addEventListener("change", () => {
+  if (!form.elements.horaFin.value) setField("fechaFin", form.elements.fecha.value);
+});
+form.elements.hora.addEventListener("change", updateTimeLabel);
+form.elements.horaFin.addEventListener("change", updateTimeLabel);
+document.querySelectorAll("[data-volume]").forEach((button) => button.addEventListener("click", () => setField("cantidadMl", button.dataset.volume)));
+document.querySelectorAll("[data-activity]").forEach((button) => button.addEventListener("click", () => setField("actividad", button.dataset.activity)));
+$("close-sheet").addEventListener("click", () => { if (!saving) sheet.close(); });
+sheet.addEventListener("cancel", (event) => { if (saving) event.preventDefault(); });
+sheet.addEventListener("close", () => { formGeneration += 1; });
+
+function downscale(file) {
+  const url = URL.createObjectURL(file);
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onerror = () => reject(new Error("Imagen no compatible"));
+    image.onload = () => {
+      try {
+        const scale = Math.min(1, 1080 / Math.max(image.naturalWidth, image.naturalHeight));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+        canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "white";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+        const data = canvas.toDataURL("image/jpeg", .76);
+        if (!data.startsWith("data:image/jpeg;base64,")) throw new Error("No se pudo guardar la imagen");
+        resolve(data);
+      } catch (error) { reject(error); }
+    };
+    image.src = url;
+  }).finally(() => URL.revokeObjectURL(url));
+}
+
+$("take-photo").addEventListener("click", () => $("camera-file").click());
+$("pick-photo").addEventListener("click", () => $("gallery-file").click());
+$("remove-photo").addEventListener("click", () => { photo = ""; updatePhoto(); });
+for (const id of ["camera-file", "gallery-file"]) {
+  $(id).addEventListener("change", async (event) => {
+    const file = event.target.files[0];
+    event.target.value = "";
+    if (!file || readingPhoto) return;
+    const generation = formGeneration;
+    readingPhoto = true;
+    $("save-entry").disabled = true;
+    $("photo-status").hidden = true;
+    try {
+      const image = await downscale(file);
+      if (generation !== formGeneration) return;
+      photo = image;
+      updatePhoto();
+    } catch {
+      if (generation !== formGeneration) return;
+      $("photo-status").textContent = "No pude abrir esa foto. Probá con una captura o un archivo JPG.";
+      $("photo-status").hidden = false;
+    } finally {
+      if (generation === formGeneration) {
+        readingPhoto = false;
+        $("save-entry").disabled = false;
+      }
+    }
+  });
+}
+
+function showFormError(message) {
+  $("form-error").textContent = message;
+  $("form-error").hidden = false;
+}
+
+function setSaving(value) {
+  saving = value;
+  $("save-entry").disabled = value;
+  $("close-sheet").disabled = value;
+  $("delete-entry").disabled = value;
+}
+
+function newId() {
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+form.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (readingPhoto || saving) return;
+  $("form-error").hidden = true;
+  const data = new FormData(form);
+  const get = (name) => (data.get(name) || "").trim();
+  const previous = records.find((entry) => entry.id === editingId);
+  const entry = { id: editingId || newId(), tipo: activeType, fecha: get("fecha"), hora: get("hora"), nota: get("nota") };
+  const date = new Date(entry.fecha + "T" + entry.hora);
+  if (Number.isNaN(date.getTime())) return showFormError("Revisá la fecha y la hora.");
+  entry.desfaseUTCMinutos = previous?.fecha === entry.fecha && previous?.hora === entry.hora ? previous.desfaseUTCMinutos : -date.getTimezoneOffset();
+  if (ratedTypes.includes(activeType)) {
+    const grade = get("valoracion-" + activeType);
+    if (grade) entry.valoracion = Number(grade);
+  }
+  let elapsed;
+  if (rangeTypes.includes(activeType) && $("use-range").checked) {
+    entry.fechaFin = get("fechaFin");
+    entry.horaFin = get("horaFin");
+    elapsed = minuteSpan(entry.fecha, entry.hora, entry.fechaFin, entry.horaFin);
+    if (!(elapsed > 0)) {
+      $("timing").open = true;
+      return showFormError("Elegí una fecha y hora de fin posteriores al inicio.");
+    }
+  }
+  if (activeType === "comida") {
+    for (const name of ["alimento", "momento", "cantidad", "tipoComida", "ingredientes"]) entry[name] = get(name);
+    entry.sensacion = moodLabels[entry.valoracion] || "";
+    if (!entry.alimento) return showFormError("Escribí qué comiste o tomaste.");
+    if (photo) entry.foto = photo;
+  }
+  if (activeType === "estado") {
+    entry.nota = get("detalleEstado");
+    entry.sintomas = data.getAll("sintomas");
+    entry.intensidad = get("intensidad");
+    entry.comidaId = get("comidaId");
+    if (!entry.valoracion && !entry.sintomas.length && !entry.nota && !entry.intensidad) {
+      return showFormError("Elegí una carita o anotá cómo te sentís.");
+    }
+  }
+  if (activeType === "bano") {
+    entry.nota = get("detalleBano");
+    if (previous?.consistencia) entry.consistencia = previous.consistencia;
+    if (previous?.molestias?.length) entry.molestias = previous.molestias;
+  }
+  if (activeType === "agua") entry.cantidadMl = Number(get("cantidadMl"));
+  if (activeType === "actividad") {
+    entry.actividad = get("actividad");
+    if (!entry.actividad) return showFormError("Escribí qué actividad hiciste.");
+    if (elapsed != null || get("duracionMin")) entry.duracionMin = elapsed ?? Number(get("duracionMin"));
+    entry.esfuerzo = get("esfuerzo");
+  }
+  if (activeType === "sueno") {
+    const awakenings = get("despertares");
+    if (awakenings) entry.despertares = Number(awakenings);
+    if (get("horaInicio")) {
+      entry.fechaInicio = get("fechaInicio");
+      entry.horaInicio = get("horaInicio");
+      const minutes = minuteSpan(entry.fechaInicio, entry.horaInicio, entry.fecha, entry.hora);
+      if (!(minutes > 0)) {
+        $("sleep-time").open = true;
+        $("timing").open = true;
+        return showFormError("La hora en que te dormiste tiene que ser anterior a la de despertar.");
+      }
+      entry.duracionMin = minutes;
+    }
+    if (!entry.valoracion && entry.despertares == null && !entry.horaInicio && !entry.nota) {
+      return showFormError("Elegí una carita o agregá un dato del sueño.");
+    }
+  }
+  if (activeType === "medicacion") {
+    entry.medicamento = get("medicamento");
+    if (!entry.medicamento) return showFormError("Escribí qué tomaste.");
+    entry.dosis = get("dosis");
+  }
+  if (activeType === "presion") {
+    entry.sistolica = Number(get("sistolica"));
+    entry.diastolica = Number(get("diastolica"));
+  }
+  setSaving(true);
+  try {
+    if (storage) {
+      await storage.put([entry]);
+      records = await readEntries();
+    } else {
+      records = [...records.filter((item) => item.id !== entry.id), entry];
+    }
+    sheet.close();
+    const todayTab = $("tab-hoy");
+    if (entry.fecha !== fromLocalDate(new Date()).fecha || $("exportar").hidden === false) {
+      selectTab(entry.fecha === fromLocalDate(new Date()).fecha ? todayTab : $("tab-historial"));
+    }
+    render();
+    showToast(storage ? "Registro guardado" : "Registrado temporalmente");
+  } catch {
+    showFormError("No pude guardar el registro. Si agregaste una foto, probá quitarla o liberar espacio.");
+  } finally {
+    setSaving(false);
+  }
+});
+
+$("delete-entry").addEventListener("click", async () => {
+  if (saving || !editingId || !window.confirm("¿Eliminar este registro del diario?")) return;
+  setSaving(true);
+  try {
+    if (storage) {
+      await storage.del(editingId);
+      records = await readEntries();
+    } else records = records.filter((entry) => entry.id !== editingId);
+    sheet.close();
+    render();
+    showToast("Registro eliminado");
+  } catch {
+    showFormError("No pude eliminar el registro. Probá de nuevo.");
+  } finally {
+    setSaving(false);
+  }
+});
+
+function jsonExport(backup) {
+  const entries = sortedEntries(records).reverse().map((item) => {
+    if (backup) return item;
+    const { foto, ...entry } = item;
+    return entry;
+  });
+  const totals = new Map();
+  for (const entry of entries) {
+    if (!totals.has(entry.fecha)) totals.set(entry.fecha, {
+      fecha: entry.fecha, comidas: 0, registrosDeEstado: 0, visitasAlBano: 0, evacuacionesRegistradas: 0,
+      aguaRegistradaMl: 0, actividadRegistradaMin: 0, suenoRegistradoMin: 0, tomasDeMedicacion: 0, medicionesDePresion: 0
+    });
+    const day = totals.get(entry.fecha);
+    if (entry.tipo === "comida") day.comidas += 1;
+    if (entry.tipo === "estado") day.registrosDeEstado += 1;
+    if (entry.tipo === "bano") {
+      day.visitasAlBano += 1;
+      if (entry.consistencia && entry.consistencia !== "Sin evacuación") day.evacuacionesRegistradas += 1;
+    }
+    if (entry.tipo === "agua") day.aguaRegistradaMl += entry.cantidadMl || 0;
+    if (entry.tipo === "actividad") day.actividadRegistradaMin += entry.duracionMin || 0;
+    if (entry.tipo === "sueno") day.suenoRegistradoMin += entry.duracionMin || 0;
+    if (entry.tipo === "medicacion") day.tomasDeMedicacion += 1;
+    if (entry.tipo === "presion") day.medicionesDePresion += 1;
+  }
+  const filename = (backup ? "copia-diario-" : "diario-digestivo-") + fromLocalDate(new Date()).fecha + ".json";
+  const json = JSON.stringify({
+    formato: appName,
+    version: 3,
+    modo: backup ? "copia" : "historial",
+    exportadoEnUTC: new Date().toISOString(),
+    caritas: moodLabels,
+    resumenPorDia: [...totals.values()],
+    registros: entries
+  }, null, 2);
+  return { filename, json };
+}
+
+function downloadJSON(backup) {
+  const { filename, json } = jsonExport(backup);
+  const url = URL.createObjectURL(new Blob([json], { type: "application/json" }));
+  const link = node("a");
+  link.href = url;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+}
+
+$("export-json").addEventListener("click", () => downloadJSON(false));
+$("export-backup").addEventListener("click", () => downloadJSON(true));
+$("share-json").addEventListener("click", async () => {
+  const { filename, json } = jsonExport(false);
+  const data = { files: [new File([json], filename, { type: "application/json" })] };
+  if (!navigator.canShare(data)) return downloadJSON(false);
+  try { await navigator.share(data); }
+  catch (error) { if (error.name !== "AbortError") downloadJSON(false); }
+});
+
+$("copy-prompt").addEventListener("click", async () => {
+  try {
+    await navigator.clipboard.writeText($("ai-prompt").textContent);
+    showToast("Texto copiado");
+  } catch {
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents($("ai-prompt"));
+    selection.removeAllRanges();
+    selection.addRange(range);
+    showToast("Texto seleccionado para copiar");
+  }
+});
+
+function validClock(date, time) {
+  return typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date) &&
+    typeof time === "string" && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(time) &&
+    Number.isFinite(Date.parse(date + "T" + time));
+}
+
+function importRecord(item) {
+  const type = item?.tipo === "sintoma" ? "estado" : item?.tipo;
+  if (!item || typeof item.id !== "string" || !/^[a-f0-9]{32}$/.test(item.id) ||
+      !Object.hasOwn(types, type) || !validClock(item.fecha, item.hora) ||
+      !Number.isInteger(item.desfaseUTCMinutos) || Math.abs(item.desfaseUTCMinutos) > 840) throw new Error("Registro inválido");
+  const entry = { id: item.id, tipo: type, fecha: item.fecha, hora: item.hora, desfaseUTCMinutos: item.desfaseUTCMinutos };
+  const str = (name, limit = 180) => typeof item[name] === "string" ? item[name].slice(0, limit) : "";
+  const strings = (name, allowed) => Array.isArray(item[name]) ? [...new Set(item[name].filter((value) => allowed.includes(value)))] : [];
+  const integer = (name, min, max) => Number.isInteger(item[name]) && item[name] >= min && item[name] <= max ? item[name] : undefined;
+  entry.nota = str("nota", 800);
+  if (ratedTypes.includes(type)) {
+    const grade = integer("valoracion", 1, 5);
+    if (grade) entry.valoracion = grade;
+  }
+  if (rangeTypes.includes(type) && validClock(item.fechaFin, item.horaFin) &&
+      item.fechaFin + item.horaFin > item.fecha + item.hora) {
+    entry.fechaFin = item.fechaFin;
+    entry.horaFin = item.horaFin;
+  }
+  if (entry.tipo === "comida") {
+    for (const name of ["alimento", "momento", "cantidad", "sensacion", "tipoComida"]) entry[name] = str(name);
+    if (!entry.alimento.trim()) throw new Error("Comida inválida");
+    if (!entry.valoracion && Object.hasOwn(legacyMealRatings, entry.sensacion)) entry.valoracion = legacyMealRatings[entry.sensacion];
+    if (entry.valoracion) entry.sensacion = moodLabels[entry.valoracion];
+    entry.ingredientes = str("ingredientes", 350);
+    if (typeof item.foto === "string" && item.foto.length < 2500000 && /^data:image\/jpeg;base64,[A-Za-z0-9+/]+=*$/.test(item.foto)) entry.foto = item.foto;
+  }
+  if (entry.tipo === "estado") {
+    entry.sintomas = strings("sintomas", symptoms);
+    entry.intensidad = str("intensidad");
+    entry.comidaId = str("comidaId", 32);
+  }
+  if (entry.tipo === "bano") {
+    entry.consistencia = str("consistencia");
+    entry.molestias = strings("molestias", ["Dolor", "Urgencia", "Esfuerzo"]);
+  }
+  if (type === "agua") {
+    entry.cantidadMl = integer("cantidadMl", 1, 20000);
+    if (!entry.cantidadMl) throw new Error("Cantidad inválida");
+  }
+  if (type === "actividad") {
+    entry.actividad = str("actividad");
+    entry.esfuerzo = str("esfuerzo");
+    entry.duracionMin = integer("duracionMin", 1, Number.MAX_SAFE_INTEGER);
+    if (!entry.actividad.trim()) throw new Error("Actividad inválida");
+  }
+  if (type === "sueno") {
+    entry.despertares = integer("despertares", 0, 99);
+    entry.duracionMin = integer("duracionMin", 1, Number.MAX_SAFE_INTEGER);
+    if (validClock(item.fechaInicio, item.horaInicio) && item.fechaInicio + item.horaInicio < item.fecha + item.hora) {
+      entry.fechaInicio = item.fechaInicio;
+      entry.horaInicio = item.horaInicio;
+    }
+  }
+  if (type === "medicacion") {
+    entry.medicamento = str("medicamento");
+    entry.dosis = str("dosis", 100);
+    if (!entry.medicamento.trim()) throw new Error("Medicación inválida");
+  }
+  if (type === "presion") {
+    entry.sistolica = integer("sistolica", 1, 999);
+    entry.diastolica = integer("diastolica", 1, 999);
+    if (!entry.sistolica || !entry.diastolica) throw new Error("Medición inválida");
+  }
+  return entry;
+}
+
+$("import-backup").addEventListener("click", () => $("backup-file").click());
+$("backup-file").addEventListener("change", async (event) => {
+  const file = event.target.files[0];
+  event.target.value = "";
+  if (!file) return;
+  $("import-backup").disabled = true;
+  let imported;
+  try {
+    const backup = JSON.parse(await file.text());
+    if (backup.formato !== appName || ![1, 2, 3].includes(backup.version) || !Array.isArray(backup.registros)) throw new Error("Formato desconocido");
+    imported = backup.registros.map(importRecord);
+  } catch {
+    showToast("No pude leer ese archivo como una copia del diario.");
+  }
+  if (imported) {
+    try {
+      const known = new Set(records.map((entry) => entry.id));
+      const entries = imported.filter((entry) => {
+        if (known.has(entry.id)) return false;
+        known.add(entry.id);
+        return true;
+      });
+      if (entries.length && storage) {
+        await storage.put(entries);
+        records = await readEntries();
+      } else if (entries.length) records = [...records, ...entries];
+      render();
+      const recovered = entries.length === 1 ? "1 registro recuperado" : entries.length + " registros recuperados";
+      showToast(entries.length ? recovered : "La copia no tiene registros nuevos");
+    } catch {
+      showToast("No se pudo importar. Revisá el espacio disponible.");
+    }
+  }
+  $("import-backup").disabled = false;
+});
+
+const chat = $("chat-sheet");
+const chatMessages = $("chat-messages");
+const chatTurns = [];
+let apiReady = false;
+let checkingApi = false;
+let sendingChat = false;
+const settings = $("chat-settings");
+const settingsKey = "diario-diario-gpt:" + new URL("./", location.href).pathname;
+let cloud = null;
+try {
+  const saved = JSON.parse(sessionStorage.getItem(settingsKey));
+  if (saved?.url && saved?.code) cloud = { url: workerUrl(saved.url), code: saved.code };
+} catch {}
+
+function workerUrl(value) {
+  const url = new URL(value);
+  if (url.protocol !== "https:" || !url.hostname.endsWith(".workers.dev") || url.username || url.password || url.port) {
+    throw new Error("Usá una dirección HTTPS de workers.dev.");
+  }
+  return url.origin + "/api/chat";
+}
+
+function chatRequest(config, options = {}) {
+  const headers = { ...options.headers };
+  if (config) headers.Authorization = "Bearer " + config.code;
+  return fetch(config?.url || "/api/chat", { ...options, headers, credentials: "omit", redirect: "error" });
+}
+
+async function isChatReady(config, milliseconds) {
+  const response = await chatRequest(config, { cache: "no-store", signal: AbortSignal.timeout(milliseconds) });
+  return response.ok && response.headers.get("content-type")?.includes("application/json") &&
+    (await response.json()).model === "gpt-6-luna";
+}
+
+function renderChatMode() {
+  $("chat-mode").textContent = apiReady ? "GPT-6 Luna" : "En este dispositivo";
+  $("chat-consent").hidden = !apiReady;
+  $("chat-info").textContent = apiReady
+    ? "Al enviar, OpenAI recibe la conversación y, si activás la casilla, los nombres, fechas y caritas de las últimas 40 comidas."
+    : "Las sugerencias usan las comidas registradas en este dispositivo.";
+  $("chat-connect").textContent = cloud ? "Conexión GPT" : "Configurar GPT";
+}
+
+function addMessage(message, yours = false) {
+  chatMessages.append(node("p", yours ? "message yours" : "message", message));
+  if (chatMessages.children.length > 31) chatMessages.children[1].remove();
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function mealContext() {
+  return sortedEntries(records.filter((entry) => entry.tipo === "comida" && entry.alimento));
+}
+
+function localReply(message) {
+  const meals = mealContext();
+  if (!meals.length) return "Todavía no hay comidas anotadas. Cuando registres un plato y cómo te cayó, puedo traerlo a esta charla.";
+  const query = normalizeName(message);
+  if (/\b(celiaquia|alergia|intolerancia|diagnostico|medicamento|presion|dosis|tratamiento)\b/.test(query)) {
+    return "Puedo ayudarte a recordar qué platos anotaste y cómo los valoraste. Para una pregunta de salud, podés llevar el historial a una consulta.";
+  }
+  if (/\bsin\s+[\p{L}]/u.test(query)) {
+    return "En este modo solo puedo basarme en tus platos anotados. Los nombres no alcanzan para comprobar qué ingredientes tiene cada uno.";
+  }
+  const moment = [
+    [/desayun/, "Desayuno"], [/almorz|almuerz/, "Almuerzo"], [/meriend/, "Merienda"], [/cenar|cena/, "Cena"]
+  ].find(([pattern]) => pattern.test(query))?.[1];
+  const withBadRating = new Set(meals.filter((entry) => entry.valoracion > 0 && entry.valoracion <= 2).map((entry) => normalizeName(entry.alimento)));
+  const good = new Map();
+  for (const meal of meals) {
+    const name = normalizeName(meal.alimento);
+    if (meal.valoracion >= 4 && !withBadRating.has(name) && !good.has(name)) good.set(name, meal);
+  }
+  const options = [...good.values()];
+  const filtered = moment ? options.filter((meal) => meal.momento === moment) : options;
+  const picks = (filtered.length ? filtered : options).slice(0, 3);
+  if (!picks.length) return "Por ahora no encontré un plato con una carita positiva que no tenga también una valoración «mal» o «muy mal». Podés agregar caritas a tus comidas desde el historial.";
+  const intro = moment && !filtered.length
+    ? "No encontré opciones bien valoradas para ese momento. De lo que ya anotaste, estas te cayeron bien:"
+    : "Estas son comidas que anotaste que te cayeron bien:";
+  return intro + "\n\n" + picks.map((meal) => "• " + meal.alimento + " (" + meal.fecha.slice(8) + "/" + meal.fecha.slice(5, 7) + ", " + moodLabels[meal.valoracion].toLowerCase() + ")").join("\n");
+}
+
+$("open-chat").addEventListener("click", async () => {
+  chat.showModal();
+  $("close-chat").focus({ preventScroll: true });
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+  if (checkingApi || apiReady || !["http:", "https:"].includes(location.protocol)) return;
+  checkingApi = true;
+  $("chat-send").disabled = true;
+  try {
+    apiReady = await isChatReady(cloud, 3500);
+    renderChatMode();
+  } catch {
+    renderChatMode();
+  } finally {
+    checkingApi = false;
+    if (!sendingChat) $("chat-send").disabled = false;
+  }
+});
+$("close-chat").addEventListener("click", () => chat.close());
+$("chat-connect").addEventListener("click", () => {
+  if (checkingApi || sendingChat) return;
+  $("worker-url").value = cloud ? new URL(cloud.url).origin : "";
+  $("worker-code").value = "";
+  $("forget-worker").hidden = !cloud;
+  $("worker-status").textContent = "";
+  settings.showModal();
+});
+$("close-chat-settings").addEventListener("click", () => settings.close());
+$("forget-worker").addEventListener("click", () => {
+  cloud = null;
+  apiReady = false;
+  chatTurns.length = 0;
+  $("share-meals").checked = false;
+  try { sessionStorage.removeItem(settingsKey); } catch {}
+  renderChatMode();
+  settings.close();
+});
+$("chat-settings-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (checkingApi) return;
+  if (location.protocol !== "https:") {
+    $("worker-status").textContent = "Abrí la versión publicada por HTTPS para conectar el Worker.";
+    return;
+  }
+  let config;
+  try { config = { url: workerUrl($("worker-url").value), code: $("worker-code").value.trim() }; }
+  catch (error) { $("worker-status").textContent = error.message; return; }
+  checkingApi = true;
+  $("save-worker").disabled = true;
+  $("worker-status").textContent = "Comprobando la conexión…";
+  try {
+    if (!await isChatReady(config, 6500)) throw new Error("Invalid connection");
+    cloud = config;
+    apiReady = true;
+    chatTurns.length = 0;
+    $("share-meals").checked = false;
+    try { sessionStorage.setItem(settingsKey, JSON.stringify(config)); } catch {}
+    $("worker-code").value = "";
+    renderChatMode();
+    settings.close();
+  } catch {
+    $("worker-status").textContent = "No pude conectar. Revisá la dirección, el código y el origen configurado en Cloudflare.";
+  } finally {
+    checkingApi = false;
+    $("save-worker").disabled = false;
+    $("chat-send").disabled = false;
+  }
+});
+$("share-meals").addEventListener("change", () => { chatTurns.length = 0; });
+$("chat-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (checkingApi || sendingChat) return;
+  const message = $("chat-input").value.trim();
+  if (!message) return;
+  $("chat-input").value = "";
+  addMessage(message, true);
+  if (!apiReady) {
+    addMessage(localReply(message));
+    return;
+  }
+  sendingChat = true;
+  $("chat-send").disabled = true;
+  $("share-meals").disabled = true;
+  const pending = node("p", "message", "Buscando una idea…");
+  chatMessages.append(pending);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+  try {
+    const meals = $("share-meals").checked ? mealContext().slice(0, 40).map(({ alimento, momento, fecha, valoracion }) => ({
+      plato: alimento, momento, fecha, valoracion
+    })) : [];
+    const messages = [...chatTurns.slice(-8), { role: "user", content: message }];
+    const response = await chatRequest(cloud, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages, meals }), signal: AbortSignal.timeout(24000)
+    });
+    if (!response.ok) throw new Error("Chat unavailable");
+    const { reply } = await response.json();
+    if (typeof reply !== "string" || !reply.trim()) throw new Error("Empty reply");
+    chatTurns.splice(0, chatTurns.length, ...messages.slice(-7), { role: "assistant", content: reply });
+    pending.remove();
+    addMessage(reply);
+  } catch {
+    pending.remove();
+    addMessage("GPT-6 Luna no respondió. Podés volver a probar en un momento.");
+  } finally {
+    sendingChat = false;
+    $("chat-send").disabled = false;
+    $("share-meals").disabled = false;
+  }
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && fromLocalDate(new Date()).fecha !== displayedDay && storage !== undefined) render();
+});
+updateDay();
+init();
+if (location.protocol === "https:" && "serviceWorker" in navigator) {
+  navigator.serviceWorker.register("./sw.js").catch(() => {});
+}
+</script>
+</body>
+</html>
