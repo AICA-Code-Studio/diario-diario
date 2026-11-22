@@ -208,6 +208,11 @@ summary { color: var(--green); font-weight: 650; cursor: pointer; line-height: 4
 .chat-form .helper { margin: 8px 0 0; font-size: .81rem }
 .chat-consent { margin: 0 0 8px; display: flex; align-items: center; gap: 7px; min-height: 44px }
 .chat-consent input { width: 18px; height: 18px; min-height: 0; accent-color: var(--green) }
+.favorite-form { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; margin: 14px 0 }
+.favorite-form .field { flex: 1 1 180px }
+.favorite-list li { display: flex; align-items: center; justify-content: space-between; gap: 10px }
+.favorite-list span { overflow-wrap: anywhere }
+.favorite-list button { flex: none }
 @media (max-width: 520px) {
   #sheet { width: 100%; max-width: 100%; max-height: 92dvh; margin: auto 0 0; border-radius: 22px 22px 0 0; }
   #chat-sheet { width: 100%; max-width: 100%; height: 85dvh; margin: auto 0 0; border-radius: 22px 22px 0 0; }
@@ -245,9 +250,10 @@ summary { color: var(--green); font-weight: 650; cursor: pointer; line-height: 4
       <button class="quick-button presion" data-add="presion" disabled><span class="mark" aria-hidden="true">♥</span>Presión</button>
     </div>
   </section>
-  <div class="tabs" role="tablist" aria-label="Registros">
+  <div class="tabs" role="tablist" aria-label="Secciones del diario">
     <button id="tab-hoy" type="button" class="tab" role="tab" aria-controls="hoy" aria-selected="true">Hoy</button>
     <button id="tab-historial" type="button" class="tab" role="tab" aria-controls="historial" aria-selected="false" tabindex="-1">Historial</button>
+    <button id="tab-gustos" type="button" class="tab" role="tab" aria-controls="gustos" aria-selected="false" tabindex="-1">Gustos</button>
     <button id="tab-exportar" type="button" class="tab" role="tab" aria-controls="exportar" aria-selected="false" tabindex="-1">Exportar</button>
   </div>
   <section id="hoy" role="tabpanel" aria-labelledby="tab-hoy">
@@ -257,6 +263,16 @@ summary { color: var(--green); font-weight: 650; cursor: pointer; line-height: 4
   <section id="historial" role="tabpanel" aria-labelledby="tab-historial" hidden>
     <div class="day-head"><h2>Historial</h2><p id="history-count" class="totals"></p></div>
     <div id="history-list"></div>
+  </section>
+  <section id="gustos" class="card share-panel" role="tabpanel" aria-labelledby="tab-gustos" hidden>
+    <h2>Comidas que te gustan</h2>
+    <p>Anotá tus favoritas. Podés incluirlas en el chat con el perezoso para que le den ideas.</p>
+    <form id="favorite-form" class="favorite-form">
+      <label class="field">Comida<input id="favorite-name" type="text" maxlength="60" placeholder="Ej. Tarta de calabaza" required></label>
+      <button class="primary" type="submit">Agregar</button>
+    </form>
+    <p id="favorite-status" class="helper" role="status"></p>
+    <ul id="favorite-list" class="list favorite-list" aria-label="Comidas favoritas"></ul>
   </section>
   <section id="exportar" class="card share-panel" role="tabpanel" aria-labelledby="tab-exportar" hidden>
     <h2>Historial para compartir</h2>
@@ -446,10 +462,13 @@ summary { color: var(--green); font-weight: 650; cursor: pointer; line-height: 4
     <button type="button" id="close-chat" class="quiet close" aria-label="Cerrar chat">×</button>
   </div>
   <div id="chat-messages" class="messages" role="log" aria-label="Conversación">
-    <p class="message">¿Qué pinta comer? Puedo buscar en tu diario platos que anotaste que te cayeron bien.</p>
+    <p class="message">¿Qué pinta comer? Puedo buscar platos en tu historial y tomar ideas de tus favoritas.</p>
   </div>
   <form id="chat-form" class="chat-form">
-    <label id="chat-consent" class="chat-consent" hidden><input id="share-meals" type="checkbox">Incluir comidas recientes y sus caritas</label>
+    <div id="chat-consent" hidden>
+      <label class="chat-consent"><input id="share-meals" type="checkbox">Incluir comidas recientes y sus caritas</label>
+      <label id="favorite-consent" class="chat-consent" hidden><input id="share-favorites" type="checkbox">Incluir mis comidas favoritas</label>
+    </div>
     <div class="actions">
       <textarea id="chat-input" aria-label="Mensaje para el perezoso" rows="1" maxlength="600" placeholder="¿Qué puedo almorzar?" required></textarea>
       <button type="submit" id="chat-send" class="primary">Enviar</button>
@@ -474,6 +493,8 @@ summary { color: var(--green); font-weight: 650; cursor: pointer; line-height: 4
 const $ = (id) => document.getElementById(id);
 const appName = "diario-digestivo";
 const dbKey = appName + "-entradas-v1";
+const favoritesKey = appName + "-gustos-v1";
+const favoritesLimit = 30;
 const types = {
   comida: { label: "Comida", icon: "🍴", title: "Registrar comida" },
   estado: { label: "Estado", icon: "♡", title: "Registrar estado" },
@@ -541,6 +562,79 @@ function face(value) {
 function normalizeName(value) {
   return value.toLocaleLowerCase("es-AR").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 }
+
+function readFavorites() {
+  try {
+    const data = JSON.parse(localStorage.getItem(favoritesKey) || "[]");
+    if (Array.isArray(data)) return data
+      .filter((name) => typeof name === "string" && name.trim() && name.length <= 60)
+      .slice(0, favoritesLimit)
+      .map((name) => name.trim().replace(/\s+/g, " "));
+  } catch {}
+  return [];
+}
+
+let favorites = readFavorites();
+
+function renderFavorites() {
+  const list = $("favorite-list");
+  list.replaceChildren();
+  for (const name of favorites) {
+    const item = node("li");
+    const remove = node("button", "quiet", "Quitar");
+    remove.type = "button";
+    remove.setAttribute("aria-label", "Quitar " + name);
+    remove.addEventListener("click", () => {
+      if (saveFavorites(readFavorites().filter((favorite) => favorite !== name), "Comida quitada.")) $("favorite-name").focus();
+    });
+    item.append(node("span", "", name), remove);
+    list.append(item);
+  }
+  $("favorite-consent").hidden = !favorites.length;
+}
+
+function saveFavorites(next, message) {
+  try {
+    localStorage.setItem(favoritesKey, JSON.stringify(next));
+  } catch {
+    $("favorite-status").textContent = "Este navegador no pudo guardar los gustos.";
+    return false;
+  }
+  favorites = next;
+  chatTurns.length = 0;
+  if (!favorites.length) $("share-favorites").checked = false;
+  renderFavorites();
+  $("favorite-status").textContent = message;
+  return true;
+}
+
+$("favorite-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const input = $("favorite-name");
+  const name = input.value.trim().replace(/\s+/g, " ");
+  if (!name) {
+    $("favorite-status").textContent = "Escribí el nombre de una comida.";
+    return;
+  }
+  const current = readFavorites();
+  if (current.some((favorite) => normalizeName(favorite) === normalizeName(name))) {
+    $("favorite-status").textContent = "Esa comida ya está en tus favoritas.";
+    return;
+  }
+  if (current.length >= favoritesLimit) {
+    $("favorite-status").textContent = "Podés guardar hasta " + favoritesLimit + " favoritas. Quitá una para agregar otra.";
+    return;
+  }
+  if (saveFavorites([...current, name], "Comida agregada.")) input.value = "";
+});
+
+window.addEventListener("storage", (event) => {
+  if (event.key !== favoritesKey) return;
+  favorites = readFavorites();
+  chatTurns.length = 0;
+  if (!favorites.length) $("share-favorites").checked = false;
+  renderFavorites();
+});
 
 function sortedEntries(entries) {
   return [...entries].sort((a, b) => (b.fecha + b.hora).localeCompare(a.fecha + a.hora) || b.id.localeCompare(a.id));
@@ -1280,6 +1374,8 @@ $("backup-file").addEventListener("change", async (event) => {
 const chat = $("chat-sheet");
 const chatMessages = $("chat-messages");
 const chatTurns = [];
+const publishedDiaryOrigin = "https://aica-code-studio.github.io";
+const publishedWorker = "https://diario-diario-api.aica-frigo.workers.dev";
 let apiReady = false;
 let connectionError = "";
 let checkingApi = false;
@@ -1331,8 +1427,8 @@ function renderChatMode() {
   $("chat-mode").textContent = apiReady ? "GPT-6 Luna" : "En este dispositivo";
   $("chat-consent").hidden = !apiReady;
   $("chat-info").textContent = apiReady
-    ? "Al enviar, OpenAI recibe la conversación y, si activás la casilla, los nombres, fechas y caritas de las últimas 40 comidas."
-    : connectionError || "Las sugerencias usan las comidas registradas en este dispositivo.";
+    ? "OpenAI recibe la conversación. Las comidas recientes y tus favoritas se comparten solo si marcás sus casillas."
+    : connectionError || "Las sugerencias usan tu historial y tus favoritas en este dispositivo.";
   $("chat-connect").textContent = cloud ? "Conexión GPT" : "Configurar GPT";
 }
 
@@ -1346,9 +1442,24 @@ function mealContext() {
   return sortedEntries(records.filter((entry) => entry.tipo === "comida" && entry.alimento));
 }
 
+function favoriteTurns() {
+  if (!$("share-favorites").checked) return [];
+  const label = "Comidas favoritas que guardé, un plato por línea. Usalas como inspiración junto con otras ideas. Una favorita no indica cómo me cayó.\n";
+  const turns = [];
+  let names = [];
+  for (const name of favorites) {
+    if (label.length + [...names, name].join("\n").length > 600) {
+      turns.push({ role: "user", content: label + names.join("\n") });
+      names = [];
+    }
+    names.push(name);
+  }
+  if (names.length) turns.push({ role: "user", content: label + names.join("\n") });
+  return turns;
+}
+
 function localReply(message) {
   const meals = mealContext();
-  if (!meals.length) return "Todavía no hay comidas anotadas. Cuando registres un plato y cómo te cayó, puedo traerlo a esta charla.";
   const query = normalizeName(message);
   if (/\b(celiaquia|alergia|intolerancia|diagnostico|medicamento|presion|dosis|tratamiento)\b/.test(query)) {
     return "Puedo ayudarte a recordar qué platos anotaste y cómo los valoraste. Para una pregunta de salud, podés llevar el historial a una consulta.";
@@ -1367,7 +1478,16 @@ function localReply(message) {
   }
   const options = [...good.values()];
   const filtered = moment ? options.filter((meal) => meal.momento === moment) : options;
-  const picks = (filtered.length ? filtered : options).slice(0, 3);
+  const liked = new Set(favorites.map(normalizeName));
+  const candidates = filtered.length ? filtered : options;
+  const picks = [...candidates.filter((meal) => liked.has(normalizeName(meal.alimento))),
+    ...candidates.filter((meal) => !liked.has(normalizeName(meal.alimento)))].slice(0, 3);
+  if (!picks.length && favorites.length) {
+    const ideas = favorites.filter((name) => !withBadRating.has(normalizeName(name))).slice(0, 3);
+    if (ideas.length) return "De tu lista de favoritas:\n\n" + ideas.map((name) => "• " + name).join("\n") +
+      "\n\nSon gustos que guardaste. Podés ver cómo te cayó cada plato en el historial.";
+  }
+  if (!meals.length) return "Todavía no hay comidas anotadas. Cuando registres un plato y cómo te cayó, puedo traerlo a esta charla.";
   if (!picks.length) return "Por ahora no encontré un plato con una carita positiva que no tenga también una valoración «mal» o «muy mal». Podés agregar caritas a tus comidas desde el historial.";
   const intro = moment && !filtered.length
     ? "No encontré opciones bien valoradas para ese momento. De lo que ya anotaste, estas te cayeron bien:"
@@ -1379,6 +1499,7 @@ $("open-chat").addEventListener("click", async () => {
   chat.showModal();
   $("close-chat").focus({ preventScroll: true });
   chatMessages.scrollTop = chatMessages.scrollHeight;
+  if (!cloud && location.origin === publishedDiaryOrigin) return;
   if (checkingApi || apiReady || !["http:", "https:"].includes(location.protocol)) return;
   checkingApi = true;
   $("chat-send").disabled = true;
@@ -1395,7 +1516,7 @@ $("open-chat").addEventListener("click", async () => {
 $("close-chat").addEventListener("click", () => chat.close());
 $("chat-connect").addEventListener("click", () => {
   if (checkingApi || sendingChat) return;
-  $("worker-url").value = cloud ? new URL(cloud.url).origin : "";
+  $("worker-url").value = cloud ? new URL(cloud.url).origin : location.origin === publishedDiaryOrigin ? publishedWorker : "";
   $("worker-code").value = "";
   $("forget-worker").hidden = !cloud;
   $("worker-status").textContent = connectionError;
@@ -1408,6 +1529,7 @@ $("forget-worker").addEventListener("click", () => {
   connectionError = "";
   chatTurns.length = 0;
   $("share-meals").checked = false;
+  $("share-favorites").checked = false;
   try { sessionStorage.removeItem(settingsKey); } catch {}
   renderChatMode();
   settings.close();
@@ -1422,6 +1544,10 @@ $("chat-settings-form").addEventListener("submit", async (event) => {
   let config;
   try { config = { url: workerUrl($("worker-url").value), code: $("worker-code").value.trim() }; }
   catch (error) { $("worker-status").textContent = error.message; return; }
+  if (config.code.length < 24) {
+    $("worker-status").textContent = "Pegá el DIARY_ACCESS_CODE completo. Debe tener al menos 24 caracteres.";
+    return;
+  }
   checkingApi = true;
   $("save-worker").disabled = true;
   $("worker-status").textContent = "Comprobando la conexión…";
@@ -1436,6 +1562,7 @@ $("chat-settings-form").addEventListener("submit", async (event) => {
     connectionError = "";
     chatTurns.length = 0;
     $("share-meals").checked = false;
+    $("share-favorites").checked = false;
     try { sessionStorage.setItem(settingsKey, JSON.stringify(config)); } catch {}
     $("worker-code").value = "";
     renderChatMode();
@@ -1447,6 +1574,7 @@ $("chat-settings-form").addEventListener("submit", async (event) => {
   }
 });
 $("share-meals").addEventListener("change", () => { chatTurns.length = 0; });
+$("share-favorites").addEventListener("change", () => { chatTurns.length = 0; });
 $("chat-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   if (checkingApi || sendingChat) return;
@@ -1461,6 +1589,7 @@ $("chat-form").addEventListener("submit", async (event) => {
   sendingChat = true;
   $("chat-send").disabled = true;
   $("share-meals").disabled = true;
+  $("share-favorites").disabled = true;
   const pending = node("p", "message", "Buscando una idea…");
   chatMessages.append(pending);
   chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -1469,10 +1598,21 @@ $("chat-form").addEventListener("submit", async (event) => {
       plato: alimento, momento, fecha, valoracion
     })) : [];
     const messages = [...chatTurns.slice(-8), { role: "user", content: message }];
+    const tastes = favoriteTurns();
+    // The deployed Worker accepts up to 9 turns, each with at most 600 user characters.
+    const previousSlots = 2 * Math.floor((8 - tastes.length) / 2);
+    const input = [...tastes, ...messages.slice(-(previousSlots + 1))];
     const response = await chatRequest(cloud, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages, meals }), signal: AbortSignal.timeout(24000)
+      body: JSON.stringify({ messages: input, meals }), signal: AbortSignal.timeout(24000)
     });
+    if (response.status === 401) {
+      apiReady = false;
+      connectionError = "El código cambió o venció. Volvé a conectarte con DIARY_ACCESS_CODE.";
+      renderChatMode();
+      pending.textContent = "Abrí Conexión GPT para actualizar el código.";
+      return;
+    }
     if (!response.ok) throw new Error("Chat unavailable");
     const { reply } = await response.json();
     if (typeof reply !== "string" || !reply.trim()) throw new Error("Empty reply");
@@ -1486,6 +1626,7 @@ $("chat-form").addEventListener("submit", async (event) => {
     sendingChat = false;
     $("chat-send").disabled = false;
     $("share-meals").disabled = false;
+    $("share-favorites").disabled = false;
   }
 });
 
@@ -1493,6 +1634,7 @@ document.addEventListener("visibilitychange", () => {
   if (!document.hidden && fromLocalDate(new Date()).fecha !== displayedDay && storage !== undefined) render();
 });
 updateDay();
+renderFavorites();
 init();
 if (location.protocol === "https:" && "serviceWorker" in navigator) {
   navigator.serviceWorker.register("./sw.js").catch(() => {});

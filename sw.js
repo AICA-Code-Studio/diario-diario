@@ -1,11 +1,15 @@
 const scope = new URL(self.registration.scope);
 const prefix = "diario-diario:" + scope.pathname + ":";
-const cacheName = prefix + "1";
+const cacheName = prefix + "2";
 const index = new URL("index.html", scope).href;
 const files = ["index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png"].map((file) => new URL(file, scope).href);
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(cacheName).then((cache) => cache.addAll(files)));
+  event.waitUntil((async () => {
+    const cache = await caches.open(cacheName);
+    await cache.addAll(files.map((file) => new Request(file, { cache: "reload" })));
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener("activate", (event) => {
@@ -22,7 +26,7 @@ self.addEventListener("fetch", (event) => {
   if (request.mode === "navigate" && [scope.pathname, new URL(index).pathname].includes(url.pathname)) {
     event.respondWith((async () => {
       try {
-        const response = await fetch(request);
+        const response = await fetch(request, { cache: "reload" });
         if (response.ok) {
           const cache = await caches.open(cacheName);
           await cache.put(index, response.clone());
