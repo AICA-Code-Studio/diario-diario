@@ -65,7 +65,7 @@ h2 { margin: 0; font-size: 1.19rem; letter-spacing: -.025em }
 .actividad { background: #e9edd9 }
 .sueno { background: #e1e5f6 }
 .medicacion { background: #f6e3e9 }
-.presion { background: #e5eee1 }
+.salud { background: #e5eee1 }
 .quick-button .mark { height: 27px; font-size: 1rem }
 .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 17px }
 .tab {
@@ -216,6 +216,18 @@ summary { color: var(--green); font-weight: 650; cursor: pointer; line-height: 4
 .favorite-list li { display: flex; align-items: center; justify-content: space-between; gap: 10px }
 .favorite-list span { overflow-wrap: anywhere }
 .favorite-list button { flex: none }
+.points-entry { margin-top: 10px; width: 100%; text-align: center }
+#points-shop { width: min(460px, calc(100% - 24px)); max-height: 88dvh; padding: 0; border: 1px solid var(--line); border-radius: 22px; color: var(--text); background: var(--paper) }
+.points-body { padding: 14px 16px }
+.points-preview { display: flex; gap: 10px; align-items: center; background: var(--mint); padding: 10px; border-radius: 13px; margin-bottom: 10px }
+.points-preview p { margin: 0 }
+.points-list li { display: flex; justify-content: space-between; gap: 8px; align-items: center; border-bottom: 1px solid var(--line); padding-block: 7px }
+.points-list small { display: block; color: var(--muted) }
+.points-list button { flex: none }
+.sloth-accessory { position: absolute; z-index: 2; left: 50%; transform: translateX(-50%); font-size: 23px; line-height: 1; pointer-events: none }
+.sloth-accessory[data-slot="ojos"] { top: 6px }
+.sloth-accessory[data-slot="cabeza"] { top: -10px }
+.sloth-accessory[data-slot="cuello"] { top: 23px; font-size: 18px }
 @media (max-width: 520px) {
   #sheet { width: 100%; max-width: 100%; max-height: 92dvh; margin: auto 0 0; border-radius: 22px 22px 0 0; }
   #chat-sheet { width: 100%; max-width: 100%; height: 85dvh; margin: auto 0 0; border-radius: 22px 22px 0 0; }
@@ -250,8 +262,9 @@ summary { color: var(--green); font-weight: 650; cursor: pointer; line-height: 4
       <button class="quick-button actividad" data-add="actividad" disabled><span class="mark" aria-hidden="true">⚡</span>Actividad</button>
       <button class="quick-button sueno" data-add="sueno" disabled><span class="mark" aria-hidden="true">☾</span>Sueño</button>
       <button class="quick-button medicacion" data-add="medicacion" disabled><span class="mark" aria-hidden="true">✚</span>Medicación</button>
-      <button class="quick-button presion" data-add="presion" disabled><span class="mark" aria-hidden="true">♥</span>Presión</button>
+      <button class="quick-button salud" data-add="salud" disabled><span class="mark" aria-hidden="true">♥</span>Salud</button>
     </div>
+    <button id="open-points" class="quiet points-entry" type="button" aria-haspopup="dialog" disabled>Cami points</button>
   </section>
   <div class="tabs" role="tablist" aria-label="Secciones del diario">
     <button id="tab-hoy" type="button" class="tab" role="tab" aria-controls="hoy" aria-selected="true">Hoy</button>
@@ -293,7 +306,7 @@ summary { color: var(--green); font-weight: 650; cursor: pointer; line-height: 4
     </div>
     <details>
       <summary>Texto para pedir un análisis a la IA</summary>
-      <p id="ai-prompt">Resumí los registros por día. Buscá coincidencias repetidas entre comidas, horarios y estados registrados, teniendo en cuenta el agua, la actividad, el sueño, la medicación y las visitas al baño. Citá ejemplos y casos que no sigan el mismo patrón. Distinguí «sin molestias registradas» de «sin datos». Separá observaciones e hipótesis y evitá atribuir causas o diagnosticar. Prepará un resumen breve para una consulta.</p>
+      <p id="ai-prompt">Resumí los registros por día. Buscá coincidencias repetidas entre comidas, horarios y estados registrados, teniendo en cuenta el agua, la actividad, el sueño, la medicación, las mediciones de salud y las visitas al baño. Citá ejemplos y casos que no sigan el mismo patrón. Distinguí «sin molestias registradas» de «sin datos». Separá observaciones e hipótesis y evitá atribuir causas o diagnosticar. Prepará un resumen breve para una consulta.</p>
       <button id="copy-prompt" class="quiet" type="button">Copiar texto</button>
     </details>
   </section>
@@ -308,7 +321,7 @@ summary { color: var(--green); font-weight: 650; cursor: pointer; line-height: 4
   </div>
   <form id="entry">
     <div id="fields-comida" hidden>
-      <label class="field">¿Qué comiste o tomaste?<input name="alimento" type="text" maxlength="180" placeholder="Ej. Pollo con arroz"></label>
+      <label class="field">¿Qué comiste?<input name="alimento" type="text" maxlength="180" placeholder="Ej. Pollo con arroz"></label>
       <label class="field">Momento<select name="momento">
         <option value="">Elegí si querés</option><option>Desayuno</option><option>Almuerzo</option><option>Merienda</option><option>Cena</option><option>Entre comidas</option>
       </select></label>
@@ -379,25 +392,10 @@ summary { color: var(--green); font-weight: 650; cursor: pointer; line-height: 4
       </div>
     </div>
     <div id="fields-actividad" hidden>
-      <label class="field">Actividad<input name="actividad" type="text" maxlength="180" placeholder="Ej. Caminata"></label>
-      <div class="choices" style="margin:7px 0 13px" aria-label="Actividades rápidas">
-        <button type="button" class="quiet" data-activity="Caminata">Caminata</button>
-        <button type="button" class="quiet" data-activity="Entrenamiento">Entrenamiento</button>
-        <button type="button" class="quiet" data-activity="Bici">Bici</button>
-      </div>
-      <details id="more-activities" style="margin:0 0 12px">
-        <summary>Más actividades</summary>
-        <div class="choices">
-          <button type="button" class="quiet" data-activity="Correr">Correr</button>
-          <button type="button" class="quiet" data-activity="Gimnasio">Gimnasio</button>
-          <button type="button" class="quiet" data-activity="Yoga">Yoga</button>
-          <button type="button" class="quiet" data-activity="Pilates">Pilates</button>
-          <button type="button" class="quiet" data-activity="Baile">Baile</button>
-          <button type="button" class="quiet" data-activity="Natación">Natación</button>
-          <button type="button" class="quiet" data-activity="Estiramientos">Estiramientos</button>
-          <button type="button" class="quiet" data-activity="Deporte en equipo">Deporte en equipo</button>
-        </div>
-      </details>
+      <label class="field">Actividad<select name="actividad">
+        <option value="">Elegí una actividad</option><option>Caminata</option><option>Correr</option><option>Bici</option><option>Gym</option><option>Pádel</option><option>Natación</option><option>Baile</option><option>Otro</option>
+      </select></label>
+      <label id="other-activity" class="field form-section" hidden>¿Cuál? <span class="optional">(opcional)</span><input name="otraActividad" type="text" maxlength="180"></label>
       <label id="activity-duration" class="field">Duración (min) <span class="optional">(opcional)</span><input name="duracionMin" type="number" inputmode="numeric" min="1" max="1440" step="1"></label>
       <fieldset class="form-section">
         <legend>Esfuerzo</legend>
@@ -424,7 +422,8 @@ summary { color: var(--green); font-weight: 650; cursor: pointer; line-height: 4
       <label class="field">¿Qué tomaste?<input name="medicamento" type="text" maxlength="180" placeholder="Nombre"></label>
       <label class="field">Dosis <span class="optional">(opcional)</span><input name="dosis" type="text" maxlength="100" placeholder="Ej. 1 comprimido"></label>
     </div>
-    <div id="fields-presion" hidden>
+    <div id="fields-salud" hidden>
+      <p class="helper">Completá los datos que quieras registrar.</p>
       <fieldset>
         <legend>Presión arterial (mmHg)</legend>
         <div class="twocol">
@@ -432,6 +431,13 @@ summary { color: var(--green); font-weight: 650; cursor: pointer; line-height: 4
           <label class="field">Mínima<input name="diastolica" type="number" inputmode="numeric" min="1" max="999" step="1" placeholder="80"></label>
         </div>
       </fieldset>
+      <div class="twocol form-section">
+        <label class="field">Temperatura (°C)<input name="temperatura" type="number" inputmode="decimal" min="0" step="any" placeholder="36,5"></label>
+        <label class="field">Pulsaciones (lpm)<input name="pulsaciones" type="number" inputmode="numeric" min="1" step="1"></label>
+        <label class="field">Saturación (%)<input name="saturacion" type="number" inputmode="decimal" min="0" max="100" step="any"></label>
+        <label class="field">Peso (kg)<input name="peso" type="number" inputmode="decimal" min="0.1" step="any"></label>
+      </div>
+      <label class="field form-section">Otra medición<input name="otraMedicion" type="text" maxlength="180" placeholder="Nombre, valor y unidad"></label>
     </div>
     <details id="timing" class="timing">
       <summary id="timing-title">Fecha y hora</summary>
@@ -477,7 +483,7 @@ summary { color: var(--green); font-weight: 650; cursor: pointer; line-height: 4
       </div>
     </section>
     <div id="chat-consent" hidden>
-      <label class="chat-consent"><input id="share-meals" type="checkbox">Incluir comidas recientes y sus caritas</label>
+      <label class="chat-consent"><input id="share-history" type="checkbox">Compartir historial por categorías</label>
       <label id="favorite-consent" class="chat-consent" hidden><input id="share-favorites" type="checkbox">Incluir mis comidas favoritas</label>
     </div>
     <div class="actions">
@@ -498,6 +504,17 @@ summary { color: var(--green); font-weight: 650; cursor: pointer; line-height: 4
     <div class="actions"><button id="save-worker" type="submit" class="primary">Conectar</button><button type="button" id="forget-worker" class="quiet" hidden>Desconectar</button></div>
   </form>
 </dialog>
+<dialog id="points-shop" aria-labelledby="points-title">
+  <div class="sheet-head"><h2 id="points-title">Cami points</h2><button id="close-points" class="quiet close" type="button" aria-label="Cerrar accesorios">×</button></div>
+  <div class="points-body">
+    <div class="points-preview">
+      <span id="sloth-preview" class="sloth-head" aria-hidden="true"><i class="sloth-eye left"></i><i class="sloth-eye right"></i><i class="sloth-nose"></i><i class="sloth-smile"></i></span>
+      <div><p id="points-balance"></p><p id="points-progress" class="helper"></p></div>
+    </div>
+    <ul id="points-list" class="list points-list" aria-label="Accesorios del perezoso"></ul>
+    <p id="points-status" class="helper" role="status"></p>
+  </div>
+</dialog>
 <div id="toast" class="toast" role="status" hidden></div>
 <script>
 "use strict";
@@ -505,6 +522,7 @@ const $ = (id) => document.getElementById(id);
 const appName = "diario-digestivo";
 const dbKey = appName + "-entradas-v1";
 const favoritesKey = appName + "-gustos-v1";
+const rewardsKey = appName + "-cami-points-v1";
 const favoritesLimit = 30;
 const types = {
   comida: { label: "Comida", icon: "🍴", title: "Registrar comida" },
@@ -514,12 +532,31 @@ const types = {
   actividad: { label: "Actividad", icon: "⚡", title: "Registrar actividad" },
   sueno: { label: "Sueño", icon: "☾", title: "Registrar sueño" },
   medicacion: { label: "Medicación", icon: "✚", title: "Registrar medicación" },
-  presion: { label: "Presión", icon: "♥", title: "Registrar presión" }
+  salud: { label: "Salud", icon: "♥", title: "Registrar salud" }
 };
+const healthNumbers = {
+  sistolica: { min: 1, max: 999, integer: true },
+  diastolica: { min: 1, max: 999, integer: true },
+  temperatura: { min: 0 },
+  pulsaciones: { min: 1, integer: true },
+  saturacion: { min: 0, max: 100 },
+  peso: { min: 0.1 }
+};
+const decimalFormat = new Intl.NumberFormat("es-AR", { maximumFractionDigits: 2 });
 const moodLabels = { 5: "Muy bien", 4: "Bien", 3: "Regular", 2: "Mal", 1: "Muy mal" };
 const legacyMealRatings = { Bien: 4, Regular: 3, Mal: 2 };
 const ratedTypes = ["comida", "estado", "bano", "actividad", "sueno"];
 const rangeTypes = ["agua", "actividad"];
+const accessories = [
+  { id: "lentes", name: "Lentes de sol", icon: "🕶️", slot: "ojos", milestone: 10, price: 10, thanks: "Antes que nada, gracias por los lentes de sol. Me quedan de lujo. Ahora sí, te leo." },
+  { id: "sombrero", name: "Sombrero", icon: "🎩", slot: "cabeza", milestone: 50, price: 40, thanks: "¡Gracias por el sombrero! Me lo saco para saludarte, pero despacito. Vamos con tu pregunta." },
+  { id: "panuelo", name: "Pañuelo", icon: "🧣", slot: "cuello", milestone: 100, price: 50, thanks: "Qué lindo el pañuelo. Gracias por elegírmelo. A ver, ¿en qué andábamos?" },
+  { id: "flor", name: "Flor", icon: "🌺", slot: "cabeza", milestone: 200, price: 100, thanks: "Gracias por la flor. Ahora sí siento que traje un poquito de jardín conmigo. Sigamos." },
+  { id: "antiparras", name: "Antiparras", icon: "🥽", slot: "ojos", milestone: 350, price: 150, thanks: "Me probé las antiparras. ¡Gracias! Estoy listo para ver hasta el último detalle." },
+  { id: "auriculares", name: "Auriculares", icon: "🎧", slot: "cabeza", milestone: 500, price: 150, thanks: "¡Gracias por los auriculares! Pauso la música. Ahora sí, te escucho." },
+  { id: "mono", name: "Moño", icon: "🎀", slot: "cuello", milestone: 750, price: 250, thanks: "Me dejaste hecho un señor con este moño. Gracias. ¿Vemos lo que me preguntaste?" },
+  { id: "corona", name: "Corona", icon: "👑", slot: "cabeza", milestone: 1000, price: 250, thanks: "¡Una corona! Gracias por vestir al primer perezoso real del diario. Estoy a tu servicio." }
+];
 const symptoms = ["Dolor de panza", "Hinchazón", "Náuseas", "Gases", "Acidez", "Otro"];
 const dateFormat = new Intl.DateTimeFormat("es-AR", { weekday: "long", day: "numeric", month: "long" });
 const form = $("entry");
@@ -574,6 +611,119 @@ function face(value) {
 function normalizeName(value) {
   return value.toLocaleLowerCase("es-AR").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 }
+
+const pointsShop = $("points-shop");
+let rewards;
+
+function readRewards() {
+  const raw = localStorage.getItem(rewardsKey);
+  if (raw) return JSON.parse(raw);
+  return {
+    credited: records.map((entry) => entry.id),
+    owned: [], equipped: {}, thanked: []
+  };
+}
+
+function freePoints(wallet) {
+  return wallet.credited.length - accessories.reduce((sum, item) => sum + (wallet.owned.includes(item.id) ? item.price : 0), 0);
+}
+
+function renderRewards() {
+  if (!rewards) return;
+  $("open-points").textContent = "Cami points · " + freePoints(rewards);
+  $("points-balance").textContent = freePoints(rewards) + " Cami points disponibles";
+  $("points-progress").textContent = rewards.credited.length + " cargas acumuladas";
+  for (const face of document.querySelectorAll(".sloth-head")) {
+    face.querySelectorAll(".sloth-accessory").forEach((element) => element.remove());
+    for (const item of accessories.filter(({ slot, id }) => rewards.equipped[slot] === id)) {
+      const icon = node("span", "sloth-accessory", item.icon);
+      icon.dataset.slot = item.slot;
+      face.append(icon);
+    }
+  }
+  if (!pointsShop.open) return;
+  $("points-list").replaceChildren(...accessories.map((item) => {
+    const row = node("li");
+    const copy = node("span");
+    const owned = rewards.owned.includes(item.id);
+    const worn = rewards.equipped[item.slot] === item.id;
+    copy.append(node("strong", "", item.icon + " " + item.name),
+      node("small", "", owned ? "Comprado" : item.price + " puntos · desde " + item.milestone + " cargas"));
+    const action = node("button", worn ? "quiet" : "primary", worn ? "Quitar" : owned ? "Equipar" : "Comprar");
+    action.type = "button";
+    action.setAttribute("aria-label", action.textContent + " " + item.name);
+    action.disabled = !owned && (rewards.credited.length < item.milestone || freePoints(rewards) < item.price);
+    action.addEventListener("click", () => {
+      action.disabled = true;
+      updateRewards((wallet) => {
+        if (!wallet.owned.includes(item.id)) {
+          if (wallet.credited.length < item.milestone || freePoints(wallet) < item.price) return "Todavía faltan Cami points.";
+          wallet.owned.push(item.id);
+        }
+        if (wallet.equipped[item.slot] === item.id) {
+          delete wallet.equipped[item.slot];
+          return "Accesorio quitado.";
+        }
+        wallet.equipped[item.slot] = item.id;
+        return "El perezoso ahora lleva " + item.name.toLowerCase() + ".";
+      }).finally(() => { if (action.isConnected) action.disabled = false; });
+    });
+    row.append(copy, action);
+    return row;
+  }));
+}
+
+async function updateRewards(change, showStatus = true) {
+  const update = () => {
+    const wallet = readRewards();
+    const credited = new Set(wallet.credited);
+    for (const entry of records) if (entry.camiPoint) credited.add(entry.id);
+    wallet.credited = [...credited];
+    const result = change?.(wallet);
+    const json = JSON.stringify(wallet);
+    if (localStorage.getItem(rewardsKey) !== json) localStorage.setItem(rewardsKey, json);
+    rewards = wallet;
+    renderRewards();
+    return result;
+  };
+  try {
+    const message = await (navigator.locks ? navigator.locks.request(rewardsKey, update) : update());
+    if (showStatus && message) $("points-status").textContent = message;
+    return message;
+  } catch {
+    $("points-status").textContent = "Este navegador no pudo guardar los Cami points.";
+  }
+}
+
+async function syncRewards() {
+  if (storage) await updateRewards();
+}
+
+async function thankForAccessory() {
+  if (!rewards || !Object.values(rewards.equipped).some((id) => !rewards.thanked.includes(id))) return;
+  const thanks = await updateRewards((wallet) => {
+    const item = accessories.find(({ slot, id }) => wallet.equipped[slot] === id && !wallet.thanked.includes(id));
+    if (item) {
+      wallet.thanked.push(item.id);
+      return item.thanks;
+    }
+  }, false);
+  if (thanks) addMessage(thanks);
+}
+
+$("open-points").addEventListener("click", () => {
+  $("points-status").textContent = rewards ? "" : "El navegador necesita permitir el guardado para usar Cami points.";
+  pointsShop.showModal();
+  renderRewards();
+});
+$("close-points").addEventListener("click", () => pointsShop.close());
+window.addEventListener("storage", (event) => {
+  if (event.key !== rewardsKey) return;
+  try {
+    rewards = readRewards();
+    renderRewards();
+  } catch {}
+});
 
 function readFavorites() {
   try {
@@ -699,6 +849,7 @@ function openLocalStorage() {
 async function readEntries() {
   return (await storage.read()).map((entry) => {
     if (entry.tipo === "sintoma") return { ...entry, tipo: "estado" };
+    if (entry.tipo === "presion") return { ...entry, tipo: "salud" };
     if (entry.tipo === "comida" && !entry.valoracion && Object.hasOwn(legacyMealRatings, entry.sensacion)) {
       return { ...entry, valoracion: legacyMealRatings[entry.sensacion] };
     }
@@ -728,6 +879,8 @@ async function init() {
   document.querySelectorAll("[data-add]").forEach((button) => { button.disabled = false; });
   $("open-chat").disabled = false;
   $("import-backup").disabled = false;
+  await syncRewards();
+  $("open-points").disabled = false;
   render();
 }
 
@@ -749,6 +902,37 @@ function emptyState(title, detail) {
   return box;
 }
 
+function healthDetails(entry) {
+  return [
+    entry.sistolica != null && entry.diastolica != null && entry.sistolica + "/" + entry.diastolica + " mmHg",
+    entry.temperatura != null && decimalFormat.format(entry.temperatura) + " °C",
+    entry.pulsaciones != null && entry.pulsaciones + " lpm",
+    entry.saturacion != null && "SpO₂ " + decimalFormat.format(entry.saturacion) + " %",
+    entry.peso != null && decimalFormat.format(entry.peso) + " kg",
+    entry.otraMedicion
+  ].filter(Boolean);
+}
+
+function readHealthMeasurement(read, note, requirePressure = false) {
+  const result = {};
+  for (const [name, { min, max = Infinity, integer }] of Object.entries(healthNumbers)) {
+    const value = read(name);
+    if (value == null || value === "") continue;
+    const number = typeof value === "number" || typeof value === "string" ? Number(value) : NaN;
+    if (!Number.isFinite(number) || number < min || number > max || (integer && !Number.isInteger(number))) {
+      throw new Error("Revisá los valores de las mediciones.");
+    }
+    result[name] = number;
+  }
+  if ((result.sistolica == null) !== (result.diastolica == null) || (requirePressure && result.sistolica == null)) {
+    throw new Error("Para registrar la presión, completá la máxima y la mínima.");
+  }
+  const other = read("otraMedicion");
+  if (typeof other === "string" && other.trim()) result.otraMedicion = other.trim().slice(0, 180);
+  if (!Object.keys(result).length && !note.trim()) throw new Error("Agregá al menos una medición o una nota.");
+  return result;
+}
+
 function recordList(entries) {
   const list = node("ul", "list");
   for (const entry of entries) {
@@ -758,8 +942,7 @@ function recordList(entries) {
       estado: entry.sintomas?.join(", ") || type.label,
       agua: entry.cantidadMl ? entry.cantidadMl + " ml de agua" : type.label,
       actividad: entry.actividad,
-      medicacion: entry.medicamento,
-      presion: entry.sistolica + "/" + entry.diastolica + " mmHg"
+      medicacion: entry.medicamento
     };
     const details = {
       comida: [entry.momento, entry.cantidad, entry.sensacion ? "Te cayó " + entry.sensacion.toLowerCase() : ""],
@@ -769,7 +952,7 @@ function recordList(entries) {
       actividad: [durationLabel(entry.duracionMin), entry.esfuerzo, moodLabels[entry.valoracion], entry.nota],
       sueno: [moodLabels[entry.valoracion], durationLabel(entry.duracionMin), entry.despertares == null ? "" : entry.despertares + (entry.despertares === 1 ? " despertar" : " despertares"), entry.nota],
       medicacion: [entry.dosis, entry.nota],
-      presion: [type.label, entry.nota]
+      salud: [...healthDetails(entry), entry.nota]
     };
     const item = node("li");
     const button = node("button", "record");
@@ -793,7 +976,7 @@ function recordList(entries) {
     tail.append(time);
     if (entry.horaFin) tail.append(node("small", "", "a las " + entry.horaFin));
     button.append(icon, copy, tail);
-    button.addEventListener("click", () => openForm(entry.tipo, entry, button));
+    button.addEventListener("click", () => openForm(entry.tipo, entry));
     item.append(button);
     list.append(item);
   }
@@ -942,8 +1125,6 @@ function openForm(type, entry = null, draftId = null) {
   form.elements.actividad.required = type === "actividad";
   form.elements.medicamento.required = type === "medicacion";
   form.elements.cantidadMl.required = type === "agua";
-  for (const name of ["sistolica", "diastolica"]) form.elements[name].required = type === "presion";
-  $("more-activities").open = false;
   const inlineNote = type === "estado" || type === "bano";
   $("entry-details").hidden = inlineNote;
   $("timing").open = Boolean(entry?.horaFin);
@@ -978,10 +1159,18 @@ function openForm(type, entry = null, draftId = null) {
       setChecked("sintomas", entry.sintomas);
     }
     if (type === "bano") setField("detalleBano", entry.nota);
-    if (type === "actividad") for (const name of ["actividad", "duracionMin", "esfuerzo"]) setField(name, entry[name]);
+    if (type === "actividad") {
+      const options = Array.from(form.elements.actividad.options, (option) => option.value);
+      const actividad = entry.actividad === "Gimnasio" ? "Gym" : entry.actividad;
+      const known = options.includes(actividad);
+      setField("actividad", known ? actividad : "Otro");
+      if (!known) setField("otraActividad", actividad);
+      for (const name of ["duracionMin", "esfuerzo"]) setField(name, entry[name]);
+    }
     if (type === "medicacion") for (const name of ["medicamento", "dosis"]) setField(name, entry[name]);
-    if (type === "presion") for (const name of ["sistolica", "diastolica"]) setField(name, entry[name]);
+    if (type === "salud") for (const name of [...Object.keys(healthNumbers), "otraMedicion"]) setField(name, entry[name]);
   }
+  updateOtherActivity();
   const oldBath = [entry?.consistencia, ...(entry?.molestias || [])].filter(Boolean);
   $("old-bath").hidden = !oldBath.length;
   $("old-bath").textContent = oldBath.join(" · ");
@@ -1006,7 +1195,12 @@ form.elements.fecha.addEventListener("change", () => {
 form.elements.hora.addEventListener("change", updateTimeLabel);
 form.elements.horaFin.addEventListener("change", updateTimeLabel);
 document.querySelectorAll("[data-volume]").forEach((button) => button.addEventListener("click", () => setField("cantidadMl", button.dataset.volume)));
-document.querySelectorAll("[data-activity]").forEach((button) => button.addEventListener("click", () => setField("actividad", button.dataset.activity)));
+function updateOtherActivity() {
+  const show = activeType === "actividad" && form.elements.actividad.value === "Otro";
+  $("other-activity").hidden = !show;
+  form.elements.otraActividad.disabled = !show;
+}
+form.elements.actividad.addEventListener("change", updateOtherActivity);
 $("close-sheet").addEventListener("click", () => { if (!saving) sheet.close(); });
 sheet.addEventListener("cancel", (event) => { if (saving) event.preventDefault(); });
 sheet.addEventListener("close", () => { formGeneration += 1; });
@@ -1084,8 +1278,13 @@ function newId() {
 
 async function persistEntry(entry) {
   if (storage) {
+    const credited = rewards?.credited.includes(entry.id);
+    const previous = records.find((item) => item.id === entry.id);
+    if (!previous || previous.camiPoint) entry.camiPoint = true;
     await storage.put([entry]);
     records = await readEntries();
+    await syncRewards();
+    return !credited && rewards?.credited.includes(entry.id);
   } else {
     records = [...records.filter((item) => item.id !== entry.id), entry];
   }
@@ -1119,7 +1318,7 @@ form.addEventListener("submit", async (event) => {
   if (activeType === "comida") {
     for (const name of ["alimento", "momento", "cantidad", "tipoComida", "ingredientes"]) entry[name] = get(name);
     entry.sensacion = moodLabels[entry.valoracion] || "";
-    if (!entry.alimento) return showFormError("Escribí qué comiste o tomaste.");
+    if (!entry.alimento) return showFormError("Escribí qué comiste.");
     if (photo) entry.foto = photo;
   }
   if (activeType === "estado") {
@@ -1138,8 +1337,9 @@ form.addEventListener("submit", async (event) => {
   }
   if (activeType === "agua") entry.cantidadMl = Number(get("cantidadMl"));
   if (activeType === "actividad") {
-    entry.actividad = get("actividad");
-    if (!entry.actividad) return showFormError("Escribí qué actividad hiciste.");
+    const selected = get("actividad");
+    if (!selected) return showFormError("Elegí qué actividad hiciste.");
+    entry.actividad = selected === "Otro" ? get("otraActividad") || "Otro" : selected;
     if (elapsed != null || get("duracionMin")) entry.duracionMin = elapsed ?? Number(get("duracionMin"));
     entry.esfuerzo = get("esfuerzo");
   }
@@ -1166,21 +1366,21 @@ form.addEventListener("submit", async (event) => {
     if (!entry.medicamento) return showFormError("Escribí qué tomaste.");
     entry.dosis = get("dosis");
   }
-  if (activeType === "presion") {
-    entry.sistolica = Number(get("sistolica"));
-    entry.diastolica = Number(get("diastolica"));
+  if (activeType === "salud") {
+    try { Object.assign(entry, readHealthMeasurement(get, entry.nota)); }
+    catch (error) { return showFormError(error.message); }
   }
   setSaving(true);
   try {
-    await persistEntry(entry);
+    const earned = await persistEntry(entry);
     sheet.close();
     const todayTab = $("tab-hoy");
     if (entry.fecha !== fromLocalDate(new Date()).fecha || $("exportar").hidden === false) {
       selectTab(entry.fecha === fromLocalDate(new Date()).fecha ? todayTab : $("tab-historial"));
     }
     render();
-    showToast(storage ? "Registro guardado" : "Registrado temporalmente");
-    if (formDraftId) finishChatMeal(entry);
+    showToast(storage ? "Registro guardado" + (earned ? " · +1 Cami point" : "") : "Registrado temporalmente");
+    if (formDraftId) finishChatMeal(entry, earned);
   } catch {
     showFormError("No pude guardar el registro. Si agregaste una foto, probá quitarla o liberar espacio.");
   } finally {
@@ -1208,15 +1408,14 @@ $("delete-entry").addEventListener("click", async () => {
 
 function jsonExport(backup) {
   const entries = sortedEntries(records).reverse().map((item) => {
-    if (backup) return item;
-    const { foto, ...entry } = item;
-    return entry;
+    const { foto, camiPoint, ...entry } = item;
+    return backup && foto ? { ...entry, foto } : entry;
   });
   const totals = new Map();
   for (const entry of entries) {
     if (!totals.has(entry.fecha)) totals.set(entry.fecha, {
       fecha: entry.fecha, comidas: 0, registrosDeEstado: 0, visitasAlBano: 0, evacuacionesRegistradas: 0,
-      aguaRegistradaMl: 0, actividadRegistradaMin: 0, suenoRegistradoMin: 0, tomasDeMedicacion: 0, medicionesDePresion: 0
+      aguaRegistradaMl: 0, actividadRegistradaMin: 0, suenoRegistradoMin: 0, tomasDeMedicacion: 0, registrosDeSalud: 0, medicionesDePresion: 0
     });
     const day = totals.get(entry.fecha);
     if (entry.tipo === "comida") day.comidas += 1;
@@ -1229,12 +1428,15 @@ function jsonExport(backup) {
     if (entry.tipo === "actividad") day.actividadRegistradaMin += entry.duracionMin || 0;
     if (entry.tipo === "sueno") day.suenoRegistradoMin += entry.duracionMin || 0;
     if (entry.tipo === "medicacion") day.tomasDeMedicacion += 1;
-    if (entry.tipo === "presion") day.medicionesDePresion += 1;
+    if (entry.tipo === "salud") {
+      day.registrosDeSalud += 1;
+      if (entry.sistolica != null && entry.diastolica != null) day.medicionesDePresion += 1;
+    }
   }
   const filename = (backup ? "copia-diario-" : "diario-digestivo-") + fromLocalDate(new Date()).fecha + ".json";
   const json = JSON.stringify({
     formato: appName,
-    version: 3,
+    version: 4,
     modo: backup ? "copia" : "historial",
     exportadoEnUTC: new Date().toISOString(),
     caritas: moodLabels,
@@ -1287,7 +1489,7 @@ function validClock(date, time) {
 }
 
 function importRecord(item) {
-  const type = item?.tipo === "sintoma" ? "estado" : item?.tipo;
+  const type = item?.tipo === "sintoma" ? "estado" : item?.tipo === "presion" ? "salud" : item?.tipo;
   if (!item || typeof item.id !== "string" || !/^[a-f0-9]{32}$/.test(item.id) ||
       !Object.hasOwn(types, type) || !validClock(item.fecha, item.hora) ||
       !Number.isInteger(item.desfaseUTCMinutos) || Math.abs(item.desfaseUTCMinutos) > 840) throw new Error("Registro inválido");
@@ -1345,11 +1547,7 @@ function importRecord(item) {
     entry.dosis = str("dosis", 100);
     if (!entry.medicamento.trim()) throw new Error("Medicación inválida");
   }
-  if (type === "presion") {
-    entry.sistolica = integer("sistolica", 1, 999);
-    entry.diastolica = integer("diastolica", 1, 999);
-    if (!entry.sistolica || !entry.diastolica) throw new Error("Medición inválida");
-  }
+  if (type === "salud") Object.assign(entry, readHealthMeasurement((name) => item[name], entry.nota, item.tipo === "presion"));
   return entry;
 }
 
@@ -1362,7 +1560,7 @@ $("backup-file").addEventListener("change", async (event) => {
   let imported;
   try {
     const backup = JSON.parse(await file.text());
-    if (backup.formato !== appName || ![1, 2, 3].includes(backup.version) || !Array.isArray(backup.registros)) throw new Error("Formato desconocido");
+    if (backup.formato !== appName || ![1, 2, 3, 4].includes(backup.version) || !Array.isArray(backup.registros)) throw new Error("Formato desconocido");
     imported = backup.registros.map(importRecord);
   } catch {
     showToast("No pude leer ese archivo como una copia del diario.");
@@ -1465,7 +1663,7 @@ function renderChatMode() {
   $("chat-mode").textContent = apiReady ? "GPT-6 Luna" : "En este dispositivo";
   $("chat-consent").hidden = !apiReady;
   $("chat-info").textContent = apiReady
-    ? "OpenAI recibe la conversación. Las comidas recientes y tus favoritas se comparten solo si marcás sus casillas."
+    ? "OpenAI recibe la conversación. Si marcás historial, también recibe un resumen y registros de todas las categorías, incluida Salud y Medicación."
     : connectionError || "Las sugerencias usan tu historial y tus favoritas en este dispositivo.";
   $("chat-connect").textContent = cloud ? "Conexión GPT" : "Configurar GPT";
 }
@@ -1518,7 +1716,7 @@ function setChatMeal(details) {
   return true;
 }
 
-function finishChatMeal(entry) {
+function finishChatMeal(entry, earned) {
   if (chatDraft?.id === entry.id) {
     chatDraft = null;
     renderChatMeal();
@@ -1527,7 +1725,7 @@ function finishChatMeal(entry) {
   const reply = storage
     ? "Guardé «" + entry.alimento + "» en el diario. Ya está en Historial."
     : "«" + entry.alimento + "» quedó en el diario por esta sesión. Este navegador no permitió conservarlo.";
-  addMessage(reply);
+  addMessage(reply + (earned ? " +1 Cami point." : ""));
   rememberChatTurn("Confirmé el registro de esta comida.", storage ? "El diario confirmó que se guardó." : "El diario la conservó solo en esta sesión.");
 }
 
@@ -1536,9 +1734,9 @@ $("chat-draft-save").addEventListener("click", async () => {
   const entry = chatDraft;
   setChatDraftBusy(true);
   try {
-    await persistEntry(entry);
+    const earned = await persistEntry(entry);
     render();
-    finishChatMeal(entry);
+    finishChatMeal(entry, earned);
   } catch {
     addMessage("No pude guardar la comida. Revisá que el navegador tenga espacio y probá de nuevo.");
   } finally {
@@ -1622,20 +1820,77 @@ function mealContext() {
   return sortedEntries(records.filter((entry) => entry.tipo === "comida" && entry.alimento));
 }
 
-function favoriteTurns() {
-  if (!$("share-favorites").checked) return [];
-  const label = "Comidas favoritas que guardé, un plato por línea. Usalas como inspiración junto con otras ideas. Una favorita no indica cómo me cayó.\n";
+function contextTurns(label, lines, limit) {
   const turns = [];
-  let names = [];
-  for (const name of favorites) {
-    if (label.length + [...names, name].join("\n").length > 600) {
-      turns.push({ role: "user", content: label + names.join("\n") });
-      names = [];
+  let group = [];
+  for (const line of lines) {
+    if (label.length + [...group, line].join("\n").length > 600) {
+      if (group.length) turns.push({ role: "user", content: label + group.join("\n") });
+      if (turns.length >= limit) return turns;
+      group = [];
     }
-    names.push(name);
+    if (label.length + line.length <= 600) group.push(line);
   }
-  if (names.length) turns.push({ role: "user", content: label + names.join("\n") });
+  if (group.length) turns.push({ role: "user", content: label + group.join("\n") });
   return turns;
+}
+
+function favoriteTurns(limit) {
+  if (!$("share-favorites").checked) return [];
+  return contextTurns("Comidas favoritas (datos). Usalas como inspiración. Una favorita no indica cómo me cayó.\n", favorites, limit);
+}
+
+function diaryContextLine(entry, mealsById) {
+  const fields = {
+    comida: [entry.alimento, entry.momento, entry.cantidad, entry.tipoComida, entry.ingredientes],
+    estado: [entry.sintomas?.join(", "), entry.intensidad, mealsById.get(entry.comidaId)],
+    bano: [entry.consistencia, entry.molestias?.join(", ")],
+    agua: [entry.cantidadMl != null && entry.cantidadMl + " ml"],
+    actividad: [entry.actividad, durationLabel(entry.duracionMin), entry.esfuerzo],
+    sueno: [entry.fechaInicio && "Desde " + entry.fechaInicio + " " + entry.horaInicio, durationLabel(entry.duracionMin), entry.despertares != null && entry.despertares + " despertares"],
+    medicacion: [entry.medicamento, entry.dosis],
+    salud: healthDetails(entry)
+  };
+  const values = (fields[entry.tipo] || []).filter(Boolean).map((value) => String(value).replace(/\s+/g, " ").slice(0, 85));
+  if (entry.valoracion) values.push("carita: " + (moodLabels[entry.valoracion] || entry.valoracion));
+  if (entry.nota) values.push("nota: " + entry.nota.replace(/\s+/g, " ").slice(0, 95));
+  const time = entry.hora + (entry.horaFin ? " a " + entry.fechaFin + " " + entry.horaFin : "");
+  return (entry.fecha + " " + time + " " + types[entry.tipo].label + ": " + values.join(" · ")).slice(0, 150);
+}
+
+function diaryTurns(message, limit) {
+  if (!$("share-history").checked || !records.length) return [];
+  const query = normalizeName(message);
+  let date = /\b\d{4}-\d{2}-\d{2}\b/.exec(query)?.[0];
+  if (!date && /\b(?:hoy|ayer)\b/.test(query)) {
+    const day = new Date();
+    if (/\bayer\b/.test(query) && !/\bhoy\b/.test(query)) day.setDate(day.getDate() - 1);
+    date = fromLocalDate(day).fecha;
+  }
+  const entries = sortedEntries(date ? records.filter((entry) => entry.fecha === date) : records);
+  const buckets = new Map(Object.keys(types).map((type) => [type, []]));
+  for (const entry of entries) buckets.get(entry.tipo)?.push(entry);
+  const totals = [...buckets].map(([type, items]) => types[type].label + " " + items.length).join(", ");
+  const lines = ["Resumen " + (date || "del historial") + ": " + totals + "."];
+  const namedGroups = {
+    salud: /\b(presion|peso|saturacion|temperatura|fiebre|pulsaciones|salud)\b/,
+    sueno: /\b(sueno|dormi|dormir|despertar|descanso)\b/,
+    agua: /\b(agua|liquidos|hidratacion)\b/,
+    medicacion: /\b(medicacion|remedio|medicamento|dosis)\b/,
+    actividad: /\b(actividad|entrene|gym|bici|natacion|padel|caminata)\b/,
+    bano: /\b(bano|evacuacion)\b/,
+    estado: /\b(estado|sintoma|molestia|senti)\b/
+  };
+  const priorities = Object.entries(namedGroups).filter(([, pattern]) => pattern.test(query)).map(([type]) => type);
+  const order = [...new Set([...priorities, ...buckets.keys()])];
+  const mealsById = new Map(records.filter((entry) => entry.tipo === "comida").map((entry) => [entry.id, entry.alimento]));
+  for (let index = 0; index < 10; index += 1) {
+    for (const type of order) {
+      const entry = buckets.get(type)[index];
+      if (entry) lines.push(diaryContextLine(entry, mealsById));
+    }
+  }
+  return contextTurns("Historial del diario (datos). Resumen y muestra. Usalos para observar patrones sin diagnosticar ni inferir causas.\n", lines, limit);
 }
 
 function localReply(message) {
@@ -1713,7 +1968,7 @@ $("forget-worker").addEventListener("click", () => {
   apiReady = false;
   connectionError = "";
   chatTurns.length = 0;
-  $("share-meals").checked = false;
+  $("share-history").checked = false;
   $("share-favorites").checked = false;
   try { localStorage.removeItem(settingsKey); } catch {}
   try { sessionStorage.removeItem(settingsKey); } catch {}
@@ -1751,7 +2006,7 @@ $("chat-settings-form").addEventListener("submit", async (event) => {
     apiReady = true;
     connectionError = "";
     chatTurns.length = 0;
-    $("share-meals").checked = false;
+    $("share-history").checked = false;
     $("share-favorites").checked = false;
     if (!rememberConnection(config)) showToast("El navegador solo permitió guardar la conexión en esta sesión.");
     $("worker-code").value = "";
@@ -1763,7 +2018,7 @@ $("chat-settings-form").addEventListener("submit", async (event) => {
     $("chat-send").disabled = false;
   }
 });
-$("share-meals").addEventListener("change", () => { chatTurns.length = 0; });
+$("share-history").addEventListener("change", () => { chatTurns.length = 0; });
 $("share-favorites").addEventListener("change", () => { chatTurns.length = 0; });
 $("chat-form").addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -1772,6 +2027,13 @@ $("chat-form").addEventListener("submit", async (event) => {
   if (!message) return;
   $("chat-input").value = "";
   addMessage(message, true);
+  sendingChat = true;
+  $("chat-send").disabled = true;
+  try { await thankForAccessory(); }
+  finally {
+    sendingChat = false;
+    $("chat-send").disabled = false;
+  }
   const recordReply = chatMealReply(message);
   if (recordReply) {
     rememberChatTurn(message, recordReply);
@@ -1785,17 +2047,19 @@ $("chat-form").addEventListener("submit", async (event) => {
   sendingChat = true;
   $("chat-send").disabled = true;
   setChatDraftBusy(true);
-  $("share-meals").disabled = true;
+  $("share-history").disabled = true;
   $("share-favorites").disabled = true;
   const pending = node("p", "message", "Buscando una idea…");
   chatMessages.append(pending);
   chatMessages.scrollTop = chatMessages.scrollHeight;
   try {
-    const meals = $("share-meals").checked ? mealContext().slice(0, 40).map(({ alimento, momento, fecha, valoracion }) => ({
+    const meals = $("share-history").checked ? mealContext().slice(0, 40).map(({ alimento, momento, fecha, valoracion }) => ({
       plato: alimento, momento, fecha, valoracion
     })) : [];
     const messages = [...chatTurns.slice(-8), { role: "user", content: message }];
-    const context = [recordInstructions(), ...favoriteTurns()];
+    const favoritesContext = favoriteTurns($("share-history").checked ? 1 : 5);
+    const historyContext = diaryTurns(message, 5 - favoritesContext.length);
+    const context = [recordInstructions(), ...historyContext, ...favoritesContext];
     // The deployed Worker accepts up to 9 turns, each with at most 600 user characters.
     const previousSlots = 2 * Math.floor((8 - context.length) / 2);
     const input = [...context, ...messages.slice(-(previousSlots + 1))];
@@ -1824,7 +2088,7 @@ $("chat-form").addEventListener("submit", async (event) => {
     sendingChat = false;
     $("chat-send").disabled = false;
     setChatDraftBusy(false);
-    $("share-meals").disabled = false;
+    $("share-history").disabled = false;
     $("share-favorites").disabled = false;
   }
 });
