@@ -1281,6 +1281,7 @@ const chat = $("chat-sheet");
 const chatMessages = $("chat-messages");
 const chatTurns = [];
 let apiReady = false;
+let connectionError = "";
 let checkingApi = false;
 let sendingChat = false;
 const settings = $("chat-settings");
@@ -1305,10 +1306,25 @@ function chatRequest(config, options = {}) {
   return fetch(config?.url || "/api/chat", { ...options, headers, credentials: "omit", redirect: "error" });
 }
 
-async function isChatReady(config, milliseconds) {
-  const response = await chatRequest(config, { cache: "no-store", signal: AbortSignal.timeout(milliseconds) });
-  return response.ok && response.headers.get("content-type")?.includes("application/json") &&
-    (await response.json()).model === "gpt-6-luna";
+async function checkChatConnection(config) {
+  let response;
+  try {
+    response = await chatRequest(config, {
+      cache: "no-store", signal: AbortSignal.timeout(config ? 12000 : 3500)
+    });
+  } catch (error) {
+    return error.name === "TimeoutError"
+      ? "El Worker tardó demasiado en responder. Probá conectar de nuevo."
+      : "El navegador no pudo llegar al Worker. Revisá la dirección y probá abrir el diario directamente en Chrome o Safari.";
+  }
+  if (response.status === 401) return "El código no coincide. Pegá el valor de DIARY_ACCESS_CODE que guardaste en Cloudflare.";
+  if (response.status === 503) return "El Worker todavía necesita OPENAI_API_KEY y un DIARY_ACCESS_CODE de al menos 24 caracteres en Cloudflare.";
+  if (!response.ok) return "El Worker devolvió un error (HTTP " + response.status + "). Revisá que esté desplegado.";
+  if (response.headers.get("content-type")?.includes("application/json")) {
+    const data = await response.json().catch(() => null);
+    if (data?.model === "gpt-6-luna") return "";
+  }
+  return "La dirección respondió, pero no reconocí la API del diario. Usá la URL del Worker que tiene desplegado worker.mjs.";
 }
 
 function renderChatMode() {
@@ -1316,7 +1332,7 @@ function renderChatMode() {
   $("chat-consent").hidden = !apiReady;
   $("chat-info").textContent = apiReady
     ? "Al enviar, OpenAI recibe la conversación y, si activás la casilla, los nombres, fechas y caritas de las últimas 40 comidas."
-    : "Las sugerencias usan las comidas registradas en este dispositivo.";
+    : connectionError || "Las sugerencias usan las comidas registradas en este dispositivo.";
   $("chat-connect").textContent = cloud ? "Conexión GPT" : "Configurar GPT";
 }
 
@@ -1367,9 +1383,9 @@ $("open-chat").addEventListener("click", async () => {
   checkingApi = true;
   $("chat-send").disabled = true;
   try {
-    apiReady = await isChatReady(cloud, 3500);
-    renderChatMode();
-  } catch {
+    const error = await checkChatConnection(cloud);
+    apiReady = !error;
+    if (cloud) connectionError = error;
     renderChatMode();
   } finally {
     checkingApi = false;
@@ -1382,13 +1398,14 @@ $("chat-connect").addEventListener("click", () => {
   $("worker-url").value = cloud ? new URL(cloud.url).origin : "";
   $("worker-code").value = "";
   $("forget-worker").hidden = !cloud;
-  $("worker-status").textContent = "";
+  $("worker-status").textContent = connectionError;
   settings.showModal();
 });
 $("close-chat-settings").addEventListener("click", () => settings.close());
 $("forget-worker").addEventListener("click", () => {
   cloud = null;
   apiReady = false;
+  connectionError = "";
   chatTurns.length = 0;
   $("share-meals").checked = false;
   try { sessionStorage.removeItem(settingsKey); } catch {}
@@ -1409,17 +1426,20 @@ $("chat-settings-form").addEventListener("submit", async (event) => {
   $("save-worker").disabled = true;
   $("worker-status").textContent = "Comprobando la conexión…";
   try {
-    if (!await isChatReady(config, 6500)) throw new Error("Invalid connection");
+    const error = await checkChatConnection(config);
+    if (error) {
+      $("worker-status").textContent = error;
+      return;
+    }
     cloud = config;
     apiReady = true;
+    connectionError = "";
     chatTurns.length = 0;
     $("share-meals").checked = false;
     try { sessionStorage.setItem(settingsKey, JSON.stringify(config)); } catch {}
     $("worker-code").value = "";
     renderChatMode();
     settings.close();
-  } catch {
-    $("worker-status").textContent = "No pude conectar. Revisá la dirección, el código y el origen configurado en Cloudflare.";
   } finally {
     checkingApi = false;
     $("save-worker").disabled = false;
