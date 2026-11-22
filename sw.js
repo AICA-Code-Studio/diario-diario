@@ -1,6 +1,6 @@
 const scope = new URL(self.registration.scope);
 const prefix = "diario-diario:" + scope.pathname + ":";
-const cacheName = prefix + "5";
+const cacheName = prefix + "6";
 const index = new URL("index.html", scope).href;
 const files = ["index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png"].map((file) => new URL(file, scope).href);
 

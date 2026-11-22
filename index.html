@@ -211,6 +211,10 @@ summary { color: var(--green); font-weight: 650; cursor: pointer; line-height: 4
 .chat-draft { background: #eef1e9; border-radius: 12px; margin-bottom: 8px; padding: 8px 10px }
 .chat-draft p { margin: 0 0 5px; font-size: .86rem; overflow-wrap: anywhere }
 .chat-draft .actions { flex-wrap: wrap }
+.chat-draft .moods { margin: 4px 0 8px }
+.chat-mood { display: grid; justify-items: center; gap: 2px; padding: 3px 5px; min-width: 41px; font-size: .75rem }
+.osde-message strong { display: block; margin-bottom: 3px }
+.osde-message a { display: block; width: fit-content; padding-block: 5px; min-height: 34px }
 .favorite-form { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; margin: 14px 0 }
 .favorite-form .field { flex: 1 1 180px }
 .favorite-list li { display: flex; align-items: center; justify-content: space-between; gap: 10px }
@@ -476,6 +480,7 @@ summary { color: var(--green); font-weight: 650; cursor: pointer; line-height: 4
   <form id="chat-form" class="chat-form">
     <section id="chat-draft" class="chat-draft" aria-label="Registro pendiente" hidden>
       <p id="chat-draft-description" role="status"></p>
+      <div id="chat-rating" class="moods" role="group" aria-label="Carita del 1 al 5" hidden></div>
       <div class="actions">
         <button id="chat-draft-save" class="primary" type="button">Guardar registro</button>
         <button id="chat-draft-edit" class="quiet" type="button">Editar</button>
@@ -1595,6 +1600,7 @@ const chatTurns = [];
 const moments = ["Desayuno", "Almuerzo", "Merienda", "Cena", "Entre comidas"];
 let chatDraft = null;
 let lastChatRecord = null;
+let lastOsdeCardAt = 0;
 const publishedDiaryOrigin = "https://aica-code-studio.github.io";
 const publishedWorker = "https://diario-diario-api.aica-frigo.workers.dev";
 let apiReady = false;
@@ -1670,10 +1676,58 @@ function renderChatMode() {
   $("chat-connect").textContent = cloud ? "Conexión GPT" : "Configurar GPT";
 }
 
-function addMessage(message, yours = false) {
-  chatMessages.append(node("p", yours ? "message yours" : "message", message));
+function appendChatMessage(message) {
+  chatMessages.append(message);
   if (chatMessages.children.length > 31) chatMessages.children[1].remove();
   chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function addMessage(message, yours = false) {
+  appendChatMessage(node("p", yours ? "message yours" : "message", message));
+}
+
+function wantsOsdeContact(message) {
+  const query = normalizeName(message);
+  return /\b(?:osde|teleconsulta|videoconsulta|cartilla)\b/.test(query) &&
+    /[?¿]|^(?:osde|teleconsulta|videoconsulta|cartilla)[.!]?$|\b(?:telefono|numero|contacto|link|contactar|llamar|busco|pasame|mandame|dame|necesito|quiero|como)\b/.test(query);
+}
+
+function reportsDiscomfort(message) {
+  const symptoms = "(?:fiebre|vomitos?|diarrea|nauseas?|mareos?|dolor|malestar|palpitaciones|descompostura|[aá]rcadas)";
+  const feelsBad = /\b(?:no (?:me (?:siento|senti|encuentro)|estoy|ande|ando) (?:nada )?bien|(?:me (?:siento|senti|cayo|hizo|encuentro)|estoy) (?:re |muy |bastante )?(?:mal|pesim[oa]|para el orto)|me (?:descompuse|desmaye|maree|falta el aire)|no puedo respirar)\b/;
+  const hasSymptom = new RegExp("\\b(?:tengo|tuve|sigo con|estoy con|ando con|me (?:agarro|dio|volvio))\\s+(?:(?:much[oa]|un[oa]?|algo de|un poco de|muchisimo)\\s+)?" + symptoms + "\\b");
+  return normalizeName(message).split(/[.!?,;]+|\b(?:pero|aunque|y)\b/).some((part) => {
+    if (/\b(?:si|cuando)\s+(?:yo )?(?:tengo|me siento|me duele)\b/.test(part)) return false;
+    if (feelsBad.test(part) && !/\bno (?:me (?:siento|senti|cayo|hizo|encuentro|descompuse|desmaye|maree|falta)|estoy) (?:re |muy |bastante )?(?:mal|pesim[oa]|para el orto|el aire)\b|\bno me (?:descompuse|desmaye|maree)\b/.test(part)) return true;
+    if (/\b(?:no|ni)\s+(?:tengo|tuve|sigo|estoy|ando|me (?:duele|duelen|agarro|dio|volvio))\b/.test(part)) return false;
+    return /\b(?:me duel(?:e|en)|estoy (?:descompuest[oa]|maread[oa]|enferm[oa])|vomite|estoy vomitando)\b/.test(part) || hasSymptom.test(part);
+  });
+}
+
+function addOsdeSupport(requested = false) {
+  if (!requested && Date.now() - lastOsdeCardAt < 60 * 60 * 1000) return;
+  lastOsdeCardAt = Date.now();
+  const card = node("div", "message osde-message");
+  card.append(node("strong", "", "Asistencia de OSDE"));
+  const links = [
+    ["Riesgo de vida · 0810-666-1111", "tel:08106661111"],
+    ["Urgencias médicas · 0810-888-7788", "tel:08108887788"],
+    ["Otra línea de urgencias · 11 4872-9100", "tel:+541148729100"],
+    ["Solicitar asistencia médica online", "https://asistenciamedica.osde.com.ar/tabs/inicio?utm_campaign=rebrote_covid&utm_medium=nota_app&utm_source=web_osde"],
+    ["Consultar la cartilla", "https://www.osde.com.ar/cartilla-inteligente/home"],
+    ["Descargar la app OSDE", "https://www.osde.com.ar/app"]
+  ];
+  for (const [label, href] of links) {
+    const link = node("a", "", label);
+    link.href = href;
+    if (href.startsWith("https:")) {
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.referrerPolicy = "no-referrer";
+    }
+    card.append(link);
+  }
+  appendChatMessage(card);
 }
 
 function rememberChatTurn(message, reply) {
@@ -1683,6 +1737,7 @@ function rememberChatTurn(message, reply) {
 
 function setChatDraftBusy(busy) {
   for (const id of ["chat-draft-save", "chat-draft-edit", "chat-draft-dismiss"]) $(id).disabled = busy;
+  for (const button of $("chat-rating").children) button.disabled = busy;
 }
 
 function draftTitle(entry) {
@@ -1706,6 +1761,7 @@ function renderChatRecord() {
   $("chat-draft").hidden = !chatDraft;
   if (!chatDraft) return;
   const { tipo, fecha, hora, horaDeCarga, momento, valoracion } = chatDraft;
+  $("chat-rating").hidden = Boolean(valoracion) || !ratedTypes.includes(tipo);
   const title = draftTitle(chatDraft);
   const label = types[tipo].label;
   $("chat-draft-description").textContent = [
@@ -1745,7 +1801,36 @@ function setChatRecord(details) {
   if (horaDeCarga) entry.nota = [entry.nota.trim().slice(0, 750), "Hora de carga. No se indicó la hora del registro."].filter(Boolean).join(" ");
   chatDraft = entry;
   renderChatRecord();
-  return "Preparé el registro en " + types[tipo].label + ". Tocá " + draftButtonLabel(tipo) + " para incorporarlo al historial.";
+  const prepared = "Preparé el registro en " + types[tipo].label + ".";
+  if (ratedTypes.includes(tipo) && !entry.valoracion) {
+    const questions = { comida: "¿Cómo te cayó?", estado: "¿Cómo te sentís?", bano: "¿Cómo te fue?", actividad: "¿Cómo te sentiste?", sueno: "¿Cómo dormiste?" };
+    return prepared + " " + questions[tipo] + " Del 1 al 5, 1 es muy mal y 5 es muy bien. Podés tocar una carita, escribir el número o guardar así.";
+  }
+  return prepared + " Tocá " + draftButtonLabel(tipo) + " para incorporarlo al historial.";
+}
+
+function applyChatRating(grade) {
+  chatDraft.valoracion = grade;
+  if (chatDraft.tipo === "comida") chatDraft.sensacion = moodLabels[grade];
+  renderChatRecord();
+  return "Sumé la carita «" + moodLabels[grade] + "» al borrador. Tocá " + draftButtonLabel(chatDraft.tipo) + " para guardarlo.";
+}
+
+for (const grade of [1, 2, 3, 4, 5]) {
+  const button = node("button", "quiet chat-mood");
+  button.type = "button";
+  button.setAttribute("aria-label", grade + " · " + moodLabels[grade]);
+  button.append(face(grade), document.createTextNode(String(grade)));
+  button.addEventListener("click", () => {
+    if (!chatDraft || !ratedTypes.includes(chatDraft.tipo) || chatDraft.valoracion) return;
+    const offerSupport = grade <= 2 && chatDraft.tipo !== "sueno";
+    const reply = applyChatRating(grade);
+    addMessage(String(grade), true);
+    addMessage(reply);
+    rememberChatTurn(String(grade), reply);
+    if (offerSupport) addOsdeSupport();
+  });
+  $("chat-rating").append(button);
 }
 
 function finishChatRecord(entry, earned) {
@@ -1784,10 +1869,13 @@ $("chat-draft-dismiss").addEventListener("click", () => {
   addMessage("Descarté el borrador.");
 });
 
-function mealFeeling(message) {
-  const found = /(?:me (?:senti|cayo)|me dejo) (muy bien|muy mal|mas o menos|excelente|bien|regular|mal)\b/.exec(normalizeName(message));
+function mealFeeling(message, followingUp = false) {
+  const query = normalizeName(message);
   const ratings = { "muy bien": 5, "muy mal": 1, "mas o menos": 3, excelente: 5, bien: 4, regular: 3, mal: 2 };
-  if (found && !/\bno me (?:senti|cayo|dejo)\b/.test(normalizeName(message))) return ratings[found[1]];
+  const bare = query.replace(/[.!]+$/, "");
+  if (followingUp && Object.hasOwn(ratings, bare)) return ratings[bare];
+  const found = /\b(?:me (?:siento|senti|cayo|dejo|fue)|dormi) (muy bien|muy mal|mas o menos|excelente|bien|regular|mal)\b/.exec(query);
+  if (found && !/\bno (?:me (?:siento|senti|cayo|dejo|fue)|dormi)\b/.test(query)) return ratings[found[1]];
 }
 
 function chatRecordTime(description) {
@@ -1840,15 +1928,38 @@ function mealFromMessage(message) {
   return { tipo: "comida", alimento, ...chatRecordTime(message), momento: mealMoments[normalizeName(verb)], valoracion: mealFeeling(message) };
 }
 
+function activityOrBathroomFromMessage(message) {
+  const clean = normalizeName(message);
+  if (/\b(?:si (?:voy|fui|jugue|hice)|no (?:fui|jugue|hice|registres|cargues))\b/.test(clean)) return null;
+  const askedToSave = /\b(?:carga|cargar|registra|registrar|anota|anotar|guarda|guardar)\b/.test(clean);
+  if (clean.includes("?") && !askedToSave) return null;
+  const prefix = askedToSave ? "\\b" : "^(?:(?:hoy|ayer|reci[eé]n)\\s+)?";
+  const time = chatRecordTime(message);
+  if (new RegExp(prefix + "fui al ba[ñn]o\\b", "iu").test(message)) {
+    const note = /\bfui al ba[ñn]o[,: ]+(.+)$/iu.exec(message)?.[1].trim();
+    return { tipo: "bano", ...time, nota: note, valoracion: mealFeeling(message) };
+  }
+  const match = new RegExp(prefix + "(jugu[eé]|hice)\\s+(?:a(?:l| la| los| las)?\\s+|un(?:a)?\\s+)?(.+)", "iu").exec(message);
+  if (!match) return null;
+  const description = match[2].split(/\s+(?:con|hoy|ayer|durante|por|a las|y me|\d+\s*(?:min(?:uto)?s?|horas?|hs?))\b|[.!?,;:]/iu, 1)[0].trim();
+  if (!description || /^(?:algo|mucho|poco|nada|bien|mal|un rato|lo que .+)$/iu.test(description)) return null;
+  const activity = Array.from(form.elements.actividad.options).find(({ value }) => normalizeName(value) === normalizeName(description))?.value;
+  if (!activity && normalizeName(match[1]) === "hice") return null;
+  const duration = /\b(\d+)\s*(min(?:uto)?s?|horas?|hs?)\b/i.exec(match[2]);
+  return {
+    tipo: "actividad", ...time, actividad: activity || description[0].toLocaleUpperCase("es-AR") + description.slice(1),
+    duracionMin: duration ? Number(duration[1]) * (duration[2].startsWith("h") ? 60 : 1) : undefined,
+    valoracion: mealFeeling(message)
+  };
+}
+
 function chatRecordReply(message) {
-  const details = waterFromMessage(message) || mealFromMessage(message);
+  const details = waterFromMessage(message) || mealFromMessage(message) || activityOrBathroomFromMessage(message);
   if (details) return setChatRecord(details);
-  const grade = mealFeeling(message);
-  if (chatDraft && grade && ratedTypes.includes(chatDraft.tipo)) {
-    chatDraft.valoracion = grade;
-    if (chatDraft.tipo === "comida") chatDraft.sensacion = moodLabels[grade];
-    renderChatRecord();
-    return "Agregué cómo te sentiste al borrador. Tocá " + draftButtonLabel(chatDraft.tipo) + " cuando esté listo.";
+  if (chatDraft && ratedTypes.includes(chatDraft.tipo)) {
+    const numeric = !chatDraft.valoracion && /^(?:(?:le doy|diria|me senti)\s+)?(?:un\s+)?([1-5])(?:\s*(?:\/|de)\s*5)?[.!]?$/i.exec(normalizeName(message));
+    const grade = mealFeeling(message, !chatDraft.valoracion) || Number(numeric?.[1]);
+    if (grade) return applyChatRating(grade);
   }
   if (/\b(?:registraste|guardaste|anotaste|queda guardad[oa]|se guard[oó]|lo veo en el historial)\b/i.test(message)) {
     if (chatDraft) return "Sigue como borrador. Tocá " + draftButtonLabel(chatDraft.tipo) + " para que aparezca en Historial.";
@@ -1864,7 +1975,7 @@ function recordInstructions() {
   const { fecha } = fromLocalDate(new Date());
   return [
     "Instrucción de Diario diario. Hoy es " + fecha + ". Si te cuento una carga pasada o pido registrar algo, elegí su categoría y devolvé una sola línea REGISTRO: seguida de un objeto JSON con tipo y solo los datos explícitos. Es un borrador: el usuario confirma el guardado; nunca digas que lo guardaste. Consultas, recomendaciones y planes futuros se responden normalmente. Si falta un dato esencial, preguntá. Campos comunes opcionales: fecha (AAAA-MM-DD), hora (HH:mm), valoracion (1 a 5) y nota.",
-    "Tipos y campos de REGISTRO: comida: alimento,momento (Desayuno/Almuerzo/Merienda/Cena/Entre comidas); agua: cantidadMl (entero), agua sola siempre en agua y no comida; actividad: actividad,duracionMin,esfuerzo (Generala va en actividad); estado: nota,sintomas,intensidad; bano: nota,consistencia; sueno: duracionMin,despertares; medicacion: medicamento,dosis; salud: sistolica,diastolica,temperatura (°C),pulsaciones (lpm),saturacion (%),peso (kg),otraMedicion. Usá números JSON para mediciones. No conviertas vasos o botellas a mililitros sin capacidad indicada."
+    "Tipos y campos de REGISTRO: comida: alimento,momento (Desayuno/Almuerzo/Merienda/Cena/Entre comidas); agua: cantidadMl (entero), agua sola siempre en agua y no comida; actividad: actividad,duracionMin,esfuerzo (Generala va en actividad); estado: nota,sintomas,intensidad; bano: nota,consistencia; sueno: duracionMin,despertares; medicacion: medicamento,dosis; salud: sistolica,diastolica,temperatura (°C),pulsaciones (lpm),saturacion (%),peso (kg),otraMedicion. Usá números JSON para mediciones. No conviertas vasos o botellas a ml sin capacidad. Los contactos de OSDE los muestra la app."
   ].map((content) => ({ role: "user", content }));
 }
 
@@ -2098,6 +2209,10 @@ $("chat-form").addEventListener("submit", async (event) => {
   if (!message) return;
   $("chat-input").value = "";
   addMessage(message, true);
+  const requestedOsde = wantsOsdeContact(message);
+  const discomfort = reportsDiscomfort(message);
+  const immediateHelp = discomfort && /\b(?:no puedo respirar|me falta el aire|me desmaye)\b/.test(normalizeName(message));
+  if (requestedOsde || discomfort || immediateHelp) addOsdeSupport(requestedOsde || immediateHelp);
   sendingChat = true;
   $("chat-send").disabled = true;
   try { await thankForAccessory(); }
@@ -2105,12 +2220,15 @@ $("chat-form").addEventListener("submit", async (event) => {
     sendingChat = false;
     $("chat-send").disabled = false;
   }
+  const previousGrade = chatDraft?.valoracion;
   const recordReply = chatRecordReply(message);
   if (recordReply) {
     rememberChatTurn(message, recordReply);
     addMessage(recordReply);
+    if (previousGrade !== chatDraft?.valoracion && chatDraft?.valoracion <= 2 && chatDraft.tipo !== "sueno") addOsdeSupport();
     return;
   }
+  if (requestedOsde || immediateHelp || (discomfort && !apiReady)) return;
   if (!apiReady) {
     addMessage(localReply(message));
     return;
