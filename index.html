@@ -208,6 +208,9 @@ summary { color: var(--green); font-weight: 650; cursor: pointer; line-height: 4
 .chat-form .helper { margin: 8px 0 0; font-size: .81rem }
 .chat-consent { margin: 0 0 8px; display: flex; align-items: center; gap: 7px; min-height: 44px }
 .chat-consent input { width: 18px; height: 18px; min-height: 0; accent-color: var(--green) }
+.chat-draft { background: #eef1e9; border-radius: 12px; margin-bottom: 8px; padding: 8px 10px }
+.chat-draft p { margin: 0 0 5px; font-size: .86rem; overflow-wrap: anywhere }
+.chat-draft .actions { flex-wrap: wrap }
 .favorite-form { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; margin: 14px 0 }
 .favorite-form .field { flex: 1 1 180px }
 .favorite-list li { display: flex; align-items: center; justify-content: space-between; gap: 10px }
@@ -462,9 +465,17 @@ summary { color: var(--green); font-weight: 650; cursor: pointer; line-height: 4
     <button type="button" id="close-chat" class="quiet close" aria-label="Cerrar chat">×</button>
   </div>
   <div id="chat-messages" class="messages" role="log" aria-label="Conversación">
-    <p class="message">¿Qué pinta comer? Puedo buscar platos en tu historial y tomar ideas de tus favoritas.</p>
+    <p class="message">Contame qué comiste para preparar un registro, o pedime ideas para tu próxima comida.</p>
   </div>
   <form id="chat-form" class="chat-form">
+    <section id="chat-draft" class="chat-draft" aria-label="Registro de comida pendiente" hidden>
+      <p id="chat-draft-description" role="status"></p>
+      <div class="actions">
+        <button id="chat-draft-save" class="primary" type="button">Guardar comida</button>
+        <button id="chat-draft-edit" class="quiet" type="button">Editar</button>
+        <button id="chat-draft-dismiss" class="quiet" type="button">Descartar</button>
+      </div>
+    </section>
     <div id="chat-consent" hidden>
       <label class="chat-consent"><input id="share-meals" type="checkbox">Incluir comidas recientes y sus caritas</label>
       <label id="favorite-consent" class="chat-consent" hidden><input id="share-favorites" type="checkbox">Incluir mis comidas favoritas</label>
@@ -481,8 +492,8 @@ summary { color: var(--green); font-weight: 650; cursor: pointer; line-height: 4
   <div class="sheet-head"><h2 id="chat-settings-title">Configurar GPT</h2><button type="button" id="close-chat-settings" class="quiet close" aria-label="Cerrar configuración">×</button></div>
   <form id="chat-settings-form">
     <label class="field">Dirección del Worker<input id="worker-url" type="url" placeholder="https://nombre.cuenta.workers.dev" required></label>
-    <label class="field">Código de acceso del diario<input id="worker-code" type="password" autocomplete="off" maxlength="200" required></label>
-    <p class="helper">Usá el código de acceso del diario. La clave de OpenAI se guarda en Cloudflare.</p>
+    <label class="field">Código de acceso del diario<input id="worker-code" type="password" autocomplete="off" maxlength="200"></label>
+    <p id="worker-hint" class="helper">El código se guarda en este navegador. La clave de OpenAI queda en Cloudflare.</p>
     <p id="worker-status" class="helper" role="status"></p>
     <div class="actions"><button id="save-worker" type="submit" class="primary">Conectar</button><button type="button" id="forget-worker" class="quiet" hidden>Desconectar</button></div>
   </form>
@@ -517,6 +528,7 @@ let records = [];
 let storage;
 let activeType;
 let editingId;
+let formDraftId;
 let photo = "";
 let readingPhoto = false;
 let formGeneration = 0;
@@ -905,18 +917,19 @@ function updateTimeLabel() {
   $("timing-title").textContent = [label, times].filter(Boolean).join(" · ");
 }
 
-function openForm(type, entry = null) {
+function openForm(type, entry = null, draftId = null) {
   formGeneration += 1;
   readingPhoto = false;
   saving = false;
   $("save-entry").disabled = false;
   form.reset();
   activeType = type;
-  editingId = entry?.id;
-  $("sheet-title").textContent = entry ? "Editar " + types[type].label.toLowerCase() : types[type].title;
+  editingId = draftId ? null : entry?.id;
+  formDraftId = draftId;
+  $("sheet-title").textContent = editingId ? "Editar " + types[type].label.toLowerCase() : types[type].title;
   $("form-error").hidden = true;
   $("photo-status").hidden = true;
-  $("delete-entry").hidden = !entry;
+  $("delete-entry").hidden = !editingId;
   const now = fromLocalDate(new Date());
   setField("fecha", entry?.fecha || now.fecha);
   setField("hora", entry?.hora || now.hora);
@@ -1069,6 +1082,15 @@ function newId() {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
+async function persistEntry(entry) {
+  if (storage) {
+    await storage.put([entry]);
+    records = await readEntries();
+  } else {
+    records = [...records.filter((item) => item.id !== entry.id), entry];
+  }
+}
+
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (readingPhoto || saving) return;
@@ -1076,7 +1098,7 @@ form.addEventListener("submit", async (event) => {
   const data = new FormData(form);
   const get = (name) => (data.get(name) || "").trim();
   const previous = records.find((entry) => entry.id === editingId);
-  const entry = { id: editingId || newId(), tipo: activeType, fecha: get("fecha"), hora: get("hora"), nota: get("nota") };
+  const entry = { id: editingId || formDraftId || newId(), tipo: activeType, fecha: get("fecha"), hora: get("hora"), nota: get("nota") };
   const date = new Date(entry.fecha + "T" + entry.hora);
   if (Number.isNaN(date.getTime())) return showFormError("Revisá la fecha y la hora.");
   entry.desfaseUTCMinutos = previous?.fecha === entry.fecha && previous?.hora === entry.hora ? previous.desfaseUTCMinutos : -date.getTimezoneOffset();
@@ -1150,12 +1172,7 @@ form.addEventListener("submit", async (event) => {
   }
   setSaving(true);
   try {
-    if (storage) {
-      await storage.put([entry]);
-      records = await readEntries();
-    } else {
-      records = [...records.filter((item) => item.id !== entry.id), entry];
-    }
+    await persistEntry(entry);
     sheet.close();
     const todayTab = $("tab-hoy");
     if (entry.fecha !== fromLocalDate(new Date()).fecha || $("exportar").hidden === false) {
@@ -1163,6 +1180,7 @@ form.addEventListener("submit", async (event) => {
     }
     render();
     showToast(storage ? "Registro guardado" : "Registrado temporalmente");
+    if (formDraftId) finishChatMeal(entry);
   } catch {
     showFormError("No pude guardar el registro. Si agregaste una foto, probá quitarla o liberar espacio.");
   } finally {
@@ -1374,6 +1392,9 @@ $("backup-file").addEventListener("change", async (event) => {
 const chat = $("chat-sheet");
 const chatMessages = $("chat-messages");
 const chatTurns = [];
+const moments = ["Desayuno", "Almuerzo", "Merienda", "Cena", "Entre comidas"];
+let chatDraft = null;
+let lastChatMeal = null;
 const publishedDiaryOrigin = "https://aica-code-studio.github.io";
 const publishedWorker = "https://diario-diario-api.aica-frigo.workers.dev";
 let apiReady = false;
@@ -1382,11 +1403,28 @@ let checkingApi = false;
 let sendingChat = false;
 const settings = $("chat-settings");
 const settingsKey = "diario-diario-gpt:" + new URL("./", location.href).pathname;
-let cloud = null;
-try {
-  const saved = JSON.parse(sessionStorage.getItem(settingsKey));
-  if (saved?.url && saved?.code) cloud = { url: workerUrl(saved.url), code: saved.code };
-} catch {}
+let cloud = readConnection("localStorage") || readConnection("sessionStorage");
+
+function readConnection(store) {
+  try {
+    const saved = JSON.parse(window[store].getItem(settingsKey));
+    if (typeof saved?.code === "string" && saved.code.length >= 24) {
+      return { url: workerUrl(saved.url), code: saved.code };
+    }
+  } catch {}
+  return null;
+}
+
+function rememberConnection(config) {
+  try {
+    localStorage.setItem(settingsKey, JSON.stringify(config));
+    try { sessionStorage.removeItem(settingsKey); } catch {}
+    return true;
+  } catch {
+    try { sessionStorage.setItem(settingsKey, JSON.stringify(config)); } catch {}
+    return false;
+  }
+}
 
 function workerUrl(value) {
   const url = new URL(value);
@@ -1436,6 +1474,148 @@ function addMessage(message, yours = false) {
   chatMessages.append(node("p", yours ? "message yours" : "message", message));
   if (chatMessages.children.length > 31) chatMessages.children[1].remove();
   chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function rememberChatTurn(message, reply) {
+  chatTurns.push({ role: "user", content: message }, { role: "assistant", content: reply });
+  if (chatTurns.length > 8) chatTurns.splice(0, chatTurns.length - 8);
+}
+
+function setChatDraftBusy(busy) {
+  for (const id of ["chat-draft-save", "chat-draft-edit", "chat-draft-dismiss"]) $(id).disabled = busy;
+}
+
+function renderChatMeal() {
+  $("chat-draft").hidden = !chatDraft;
+  if (!chatDraft) return;
+  const { alimento, fecha, hora, horaDeCarga, momento, valoracion } = chatDraft;
+  $("chat-draft-description").textContent = [
+    alimento, fecha.slice(8) + "/" + fecha.slice(5, 7), hora + (horaDeCarga ? " (hora de carga)" : ""),
+    momento, moodLabels[valoracion]
+  ].filter(Boolean).join(" · ");
+}
+
+function setChatMeal(details) {
+  const alimento = typeof details?.alimento === "string" ? details.alimento.trim().replace(/\s+/g, " ") : "";
+  if (!alimento || alimento.length > 180) return false;
+  const now = fromLocalDate(new Date());
+  const fecha = typeof details.fecha === "string" && validClock(details.fecha, "12:00") && details.fecha <= now.fecha
+    ? details.fecha : now.fecha;
+  const horaDeCarga = !validClock(fecha, details.hora);
+  const hora = horaDeCarga ? now.hora : details.hora;
+  const valoracion = Number.isInteger(details.valoracion) && Object.hasOwn(moodLabels, details.valoracion)
+    ? details.valoracion : undefined;
+  const momento = moments.includes(details.momento) ? details.momento : "";
+  const nota = typeof details.nota === "string" ? details.nota.trim().slice(0, 750) : "";
+  const id = chatDraft?.alimento === alimento && chatDraft.fecha === fecha ? chatDraft.id : newId();
+  chatDraft = {
+    id, tipo: "comida", alimento, fecha, hora, horaDeCarga, momento, valoracion,
+    sensacion: moodLabels[valoracion] || "",
+    nota: [nota, horaDeCarga && "Hora de carga. No se indicó la hora de la comida."].filter(Boolean).join(" "),
+    desfaseUTCMinutos: -new Date(fecha + "T" + hora).getTimezoneOffset()
+  };
+  renderChatMeal();
+  return true;
+}
+
+function finishChatMeal(entry) {
+  if (chatDraft?.id === entry.id) {
+    chatDraft = null;
+    renderChatMeal();
+  }
+  lastChatMeal = entry;
+  const reply = storage
+    ? "Guardé «" + entry.alimento + "» en el diario. Ya está en Historial."
+    : "«" + entry.alimento + "» quedó en el diario por esta sesión. Este navegador no permitió conservarlo.";
+  addMessage(reply);
+  rememberChatTurn("Confirmé el registro de esta comida.", storage ? "El diario confirmó que se guardó." : "El diario la conservó solo en esta sesión.");
+}
+
+$("chat-draft-save").addEventListener("click", async () => {
+  if (!chatDraft || $("chat-draft-save").disabled) return;
+  const entry = chatDraft;
+  setChatDraftBusy(true);
+  try {
+    await persistEntry(entry);
+    render();
+    finishChatMeal(entry);
+  } catch {
+    addMessage("No pude guardar la comida. Revisá que el navegador tenga espacio y probá de nuevo.");
+  } finally {
+    setChatDraftBusy(false);
+  }
+});
+$("chat-draft-edit").addEventListener("click", () => {
+  if (chatDraft) openForm("comida", chatDraft, chatDraft.id);
+});
+$("chat-draft-dismiss").addEventListener("click", () => {
+  chatDraft = null;
+  renderChatMeal();
+  addMessage("Descarté el borrador.");
+});
+
+function mealFeeling(message) {
+  const found = /(?:me (?:senti|cayo)|me dejo) (muy bien|muy mal|mas o menos|excelente|bien|regular|mal)\b/.exec(normalizeName(message));
+  const ratings = { "muy bien": 5, "muy mal": 1, "mas o menos": 3, excelente: 5, bien: 4, regular: 3, mal: 2 };
+  if (found && !/\bno me (?:senti|cayo|dejo)\b/.test(normalizeName(message))) return ratings[found[1]];
+}
+
+function mealFromMessage(message) {
+  if (message.includes("?")) return null;
+  const match = /^(?:(hoy|ayer)\s+)?(?:me\s+)?(com[ií]|tom[eé]|desayun[eé]|almorc[eé]|merend[eé]|cen[eé]|registr[aá]|anot[aá])\s+(.+)$/iu.exec(message);
+  if (!match) return null;
+  const [, day, verb, description] = match;
+  const after = /\s+(?:hoy|ayer|a las|y me)\b/iu;
+  const alimento = description.split(after, 1)[0].trim().replace(/[.!;,]+$/, "");
+  if (!alimento || /^(?:algo|nada|mucho|poco|esto|eso|mi comida|lo que .+|lo|la)(?:[.!]*)$/iu.test(alimento)) return null;
+  const when = new Date();
+  if (normalizeName(day || "") === "ayer" || /\bayer\b/iu.test(description)) when.setDate(when.getDate() - 1);
+  const time = /\ba las\s+([01]?\d|2[0-3])(?::([0-5]\d))?(?:\s+de la (mañana|tarde|noche))?(?=\s*(?:[.!?,;]|$|y\b))/iu.exec(description);
+  let hora = "";
+  if (time) {
+    const hour = Number(time[1]);
+    const clockHour = time[3] && hour < 12 && normalizeName(time[3]) !== "manana" ? hour + 12 : hour;
+    hora = String(clockHour).padStart(2, "0") + ":" + (time[2] || "00");
+  }
+  const mealMoments = { desayune: "Desayuno", almorce: "Almuerzo", merende: "Merienda", cene: "Cena" };
+  return { alimento, fecha: fromLocalDate(when).fecha, hora, momento: mealMoments[normalizeName(verb)], valoracion: mealFeeling(message) };
+}
+
+function chatMealReply(message) {
+  const details = mealFromMessage(message);
+  if (details && setChatMeal(details)) return "Preparé el registro. Tocá Guardar comida para incorporarlo al historial.";
+  const grade = mealFeeling(message);
+  if (chatDraft && grade) {
+    chatDraft.valoracion = grade;
+    chatDraft.sensacion = moodLabels[grade];
+    renderChatMeal();
+    return "Agregué cómo te sentiste al borrador. Tocá Guardar comida cuando esté listo.";
+  }
+  if (/\b(?:registraste|guardaste|anotaste|queda guardad[oa]|se guard[oó]|lo veo en el historial)\b/i.test(message)) {
+    if (chatDraft) return "La comida sigue como borrador. Tocá Guardar comida para que aparezca en Historial.";
+    if (lastChatMeal && records.some((entry) => entry.id === lastChatMeal.id)) {
+      return "«" + lastChatMeal.alimento + "» está en Historial, el " + dateLabel(lastChatMeal.fecha) + ".";
+    }
+    return "En esta charla todavía no quedó guardada ninguna comida. Contame qué comiste para preparar un registro.";
+  }
+  return "";
+}
+
+function recordInstructions() {
+  const { fecha } = fromLocalDate(new Date());
+  return {
+    role: "user",
+    content: "Instrucción de la app Diario diario. Hoy es " + fecha + ". El chat puede preparar borradores, y se guardan solo al tocar Guardar comida. Nunca afirmes que guardaste algo. Si te cuento qué comí o pido registrar una comida ya consumida, respondé en una línea REGISTRO_COMIDA: seguido de un objeto JSON con alimento y, solo si se conocen, fecha (AAAA-MM-DD), hora (HH:mm), momento (Desayuno, Almuerzo, Merienda, Cena o Entre comidas), valoracion (1 a 5) y nota. Para preguntas, recomendaciones o comidas futuras respondé normalmente."
+  };
+}
+
+function readMealProposal(reply) {
+  const action = /^\s*REGISTRO_COMIDA:\s*(\{.*\})\s*$/m.exec(reply);
+  if (!action) return "";
+  try {
+    if (setChatMeal(JSON.parse(action[1]))) return "Preparé el registro. Tocá Guardar comida para incorporarlo al historial.";
+  } catch {}
+  return "No pude preparar el registro. Contame qué comiste, por ejemplo «Comí carne hoy».";
 }
 
 function mealContext() {
@@ -1507,6 +1687,7 @@ $("open-chat").addEventListener("click", async () => {
     const error = await checkChatConnection(cloud);
     apiReady = !error;
     if (cloud) connectionError = error;
+    if (cloud && apiReady) rememberConnection(cloud);
     renderChatMode();
   } finally {
     checkingApi = false;
@@ -1518,6 +1699,10 @@ $("chat-connect").addEventListener("click", () => {
   if (checkingApi || sendingChat) return;
   $("worker-url").value = cloud ? new URL(cloud.url).origin : location.origin === publishedDiaryOrigin ? publishedWorker : "";
   $("worker-code").value = "";
+  $("worker-code").placeholder = cloud ? "Código guardado" : "";
+  $("worker-hint").textContent = cloud
+    ? "Podés dejar este campo vacío para seguir usando tu código guardado."
+    : "El código se guarda en este navegador. La clave de OpenAI queda en Cloudflare.";
   $("forget-worker").hidden = !cloud;
   $("worker-status").textContent = connectionError;
   settings.showModal();
@@ -1530,6 +1715,7 @@ $("forget-worker").addEventListener("click", () => {
   chatTurns.length = 0;
   $("share-meals").checked = false;
   $("share-favorites").checked = false;
+  try { localStorage.removeItem(settingsKey); } catch {}
   try { sessionStorage.removeItem(settingsKey); } catch {}
   renderChatMode();
   settings.close();
@@ -1542,7 +1728,11 @@ $("chat-settings-form").addEventListener("submit", async (event) => {
     return;
   }
   let config;
-  try { config = { url: workerUrl($("worker-url").value), code: $("worker-code").value.trim() }; }
+  try {
+    const url = workerUrl($("worker-url").value);
+    const code = $("worker-code").value.trim() || (cloud?.url === url ? cloud.code : "");
+    config = { url, code };
+  }
   catch (error) { $("worker-status").textContent = error.message; return; }
   if (config.code.length < 24) {
     $("worker-status").textContent = "Pegá el DIARY_ACCESS_CODE completo. Debe tener al menos 24 caracteres.";
@@ -1563,7 +1753,7 @@ $("chat-settings-form").addEventListener("submit", async (event) => {
     chatTurns.length = 0;
     $("share-meals").checked = false;
     $("share-favorites").checked = false;
-    try { sessionStorage.setItem(settingsKey, JSON.stringify(config)); } catch {}
+    if (!rememberConnection(config)) showToast("El navegador solo permitió guardar la conexión en esta sesión.");
     $("worker-code").value = "";
     renderChatMode();
     settings.close();
@@ -1577,17 +1767,24 @@ $("share-meals").addEventListener("change", () => { chatTurns.length = 0; });
 $("share-favorites").addEventListener("change", () => { chatTurns.length = 0; });
 $("chat-form").addEventListener("submit", async (event) => {
   event.preventDefault();
-  if (checkingApi || sendingChat) return;
+  if (checkingApi || sendingChat || $("chat-draft-save").disabled) return;
   const message = $("chat-input").value.trim();
   if (!message) return;
   $("chat-input").value = "";
   addMessage(message, true);
+  const recordReply = chatMealReply(message);
+  if (recordReply) {
+    rememberChatTurn(message, recordReply);
+    addMessage(recordReply);
+    return;
+  }
   if (!apiReady) {
     addMessage(localReply(message));
     return;
   }
   sendingChat = true;
   $("chat-send").disabled = true;
+  setChatDraftBusy(true);
   $("share-meals").disabled = true;
   $("share-favorites").disabled = true;
   const pending = node("p", "message", "Buscando una idea…");
@@ -1598,10 +1795,10 @@ $("chat-form").addEventListener("submit", async (event) => {
       plato: alimento, momento, fecha, valoracion
     })) : [];
     const messages = [...chatTurns.slice(-8), { role: "user", content: message }];
-    const tastes = favoriteTurns();
+    const context = [recordInstructions(), ...favoriteTurns()];
     // The deployed Worker accepts up to 9 turns, each with at most 600 user characters.
-    const previousSlots = 2 * Math.floor((8 - tastes.length) / 2);
-    const input = [...tastes, ...messages.slice(-(previousSlots + 1))];
+    const previousSlots = 2 * Math.floor((8 - context.length) / 2);
+    const input = [...context, ...messages.slice(-(previousSlots + 1))];
     const response = await chatRequest(cloud, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ messages: input, meals }), signal: AbortSignal.timeout(24000)
@@ -1616,15 +1813,17 @@ $("chat-form").addEventListener("submit", async (event) => {
     if (!response.ok) throw new Error("Chat unavailable");
     const { reply } = await response.json();
     if (typeof reply !== "string" || !reply.trim()) throw new Error("Empty reply");
-    chatTurns.splice(0, chatTurns.length, ...messages.slice(-7), { role: "assistant", content: reply });
+    const visibleReply = readMealProposal(reply) || reply;
+    rememberChatTurn(message, visibleReply);
     pending.remove();
-    addMessage(reply);
+    addMessage(visibleReply);
   } catch {
     pending.remove();
     addMessage("GPT-6 Luna no respondió. Podés volver a probar en un momento.");
   } finally {
     sendingChat = false;
     $("chat-send").disabled = false;
+    setChatDraftBusy(false);
     $("share-meals").disabled = false;
     $("share-favorites").disabled = false;
   }
