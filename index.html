@@ -393,7 +393,7 @@ summary { color: var(--green); font-weight: 650; cursor: pointer; line-height: 4
     </div>
     <div id="fields-actividad" hidden>
       <label class="field">Actividad<select name="actividad">
-        <option value="">Elegí una actividad</option><option>Caminata</option><option>Correr</option><option>Bici</option><option>Gym</option><option>Pádel</option><option>Natación</option><option>Baile</option><option>Otro</option>
+        <option value="">Elegí una actividad</option><option>Caminata</option><option>Correr</option><option>Bici</option><option>Gym</option><option>Pádel</option><option>Natación</option><option>Baile</option><option value="Generala">Generala 😜</option><option>Otro</option>
       </select></label>
       <label id="other-activity" class="field form-section" hidden>¿Cuál? <span class="optional">(opcional)</span><input name="otraActividad" type="text" maxlength="180"></label>
       <label id="activity-duration" class="field">Duración (min) <span class="optional">(opcional)</span><input name="duracionMin" type="number" inputmode="numeric" min="1" max="1440" step="1"></label>
@@ -471,13 +471,13 @@ summary { color: var(--green); font-weight: 650; cursor: pointer; line-height: 4
     <button type="button" id="close-chat" class="quiet close" aria-label="Cerrar chat">×</button>
   </div>
   <div id="chat-messages" class="messages" role="log" aria-label="Conversación">
-    <p class="message">Contame qué comiste para preparar un registro, o pedime ideas para tu próxima comida.</p>
+    <p class="message">Contame qué querés registrar o pedime ideas para tu próxima comida.</p>
   </div>
   <form id="chat-form" class="chat-form">
-    <section id="chat-draft" class="chat-draft" aria-label="Registro de comida pendiente" hidden>
+    <section id="chat-draft" class="chat-draft" aria-label="Registro pendiente" hidden>
       <p id="chat-draft-description" role="status"></p>
       <div class="actions">
-        <button id="chat-draft-save" class="primary" type="button">Guardar comida</button>
+        <button id="chat-draft-save" class="primary" type="button">Guardar registro</button>
         <button id="chat-draft-edit" class="quiet" type="button">Editar</button>
         <button id="chat-draft-dismiss" class="quiet" type="button">Descartar</button>
       </div>
@@ -1296,7 +1296,7 @@ form.addEventListener("submit", async (event) => {
   $("form-error").hidden = true;
   const data = new FormData(form);
   const get = (name) => (data.get(name) || "").trim();
-  const previous = records.find((entry) => entry.id === editingId);
+  const previous = records.find((entry) => entry.id === editingId) || (chatDraft?.id === formDraftId ? chatDraft : null);
   const entry = { id: editingId || formDraftId || newId(), tipo: activeType, fecha: get("fecha"), hora: get("hora"), nota: get("nota") };
   const date = new Date(entry.fecha + "T" + entry.hora);
   if (Number.isNaN(date.getTime())) return showFormError("Revisá la fecha y la hora.");
@@ -1356,8 +1356,10 @@ form.addEventListener("submit", async (event) => {
         return showFormError("La hora en que te dormiste tiene que ser anterior a la de despertar.");
       }
       entry.duracionMin = minutes;
+    } else if (previous?.duracionMin && !previous.horaInicio) {
+      entry.duracionMin = previous.duracionMin;
     }
-    if (!entry.valoracion && entry.despertares == null && !entry.horaInicio && !entry.nota) {
+    if (!entry.valoracion && entry.despertares == null && !entry.duracionMin && !entry.nota) {
       return showFormError("Elegí una carita o agregá un dato del sueño.");
     }
   }
@@ -1380,7 +1382,7 @@ form.addEventListener("submit", async (event) => {
     }
     render();
     showToast(storage ? "Registro guardado" + (earned ? " · +1 Cami point" : "") : "Registrado temporalmente");
-    if (formDraftId) finishChatMeal(entry, earned);
+    if (formDraftId) finishChatRecord(entry, earned);
   } catch {
     showFormError("No pude guardar el registro. Si agregaste una foto, probá quitarla o liberar espacio.");
   } finally {
@@ -1592,7 +1594,7 @@ const chatMessages = $("chat-messages");
 const chatTurns = [];
 const moments = ["Desayuno", "Almuerzo", "Merienda", "Cena", "Entre comidas"];
 let chatDraft = null;
-let lastChatMeal = null;
+let lastChatRecord = null;
 const publishedDiaryOrigin = "https://aica-code-studio.github.io";
 const publishedWorker = "https://diario-diario-api.aica-frigo.workers.dev";
 let apiReady = false;
@@ -1683,50 +1685,80 @@ function setChatDraftBusy(busy) {
   for (const id of ["chat-draft-save", "chat-draft-edit", "chat-draft-dismiss"]) $(id).disabled = busy;
 }
 
-function renderChatMeal() {
-  $("chat-draft").hidden = !chatDraft;
-  if (!chatDraft) return;
-  const { alimento, fecha, hora, horaDeCarga, momento, valoracion } = chatDraft;
-  $("chat-draft-description").textContent = [
-    alimento, fecha.slice(8) + "/" + fecha.slice(5, 7), hora + (horaDeCarga ? " (hora de carga)" : ""),
-    momento, moodLabels[valoracion]
-  ].filter(Boolean).join(" · ");
+function draftTitle(entry) {
+  const titles = {
+    comida: entry.alimento,
+    agua: entry.cantidadMl + " ml de agua",
+    actividad: entry.actividad,
+    estado: entry.sintomas?.join(", ") || entry.nota,
+    sueno: durationLabel(entry.duracionMin),
+    medicacion: entry.medicamento,
+    salud: healthDetails(entry).join(" · ")
+  };
+  return titles[entry.tipo] || types[entry.tipo].label;
 }
 
-function setChatMeal(details) {
-  const alimento = typeof details?.alimento === "string" ? details.alimento.trim().replace(/\s+/g, " ") : "";
-  if (!alimento || alimento.length > 180) return false;
+function draftButtonLabel(type) {
+  return ["agua", "comida"].includes(type) ? "Guardar " + types[type].label.toLowerCase() : "Guardar en " + types[type].label;
+}
+
+function renderChatRecord() {
+  $("chat-draft").hidden = !chatDraft;
+  if (!chatDraft) return;
+  const { tipo, fecha, hora, horaDeCarga, momento, valoracion } = chatDraft;
+  const title = draftTitle(chatDraft);
+  const label = types[tipo].label;
+  $("chat-draft-description").textContent = [
+    label, title !== label ? title : "", fecha.slice(8) + "/" + fecha.slice(5, 7), hora + (horaDeCarga ? " (hora de carga)" : ""),
+    momento, moodLabels[valoracion]
+  ].filter(Boolean).join(" · ");
+  $("chat-draft-save").textContent = draftButtonLabel(tipo);
+}
+
+function setChatRecord(details) {
+  if (!Object.hasOwn(types, details?.tipo)) return "";
+  const { tipo } = details;
   const now = fromLocalDate(new Date());
   const fecha = typeof details.fecha === "string" && validClock(details.fecha, "12:00") && details.fecha <= now.fecha
     ? details.fecha : now.fecha;
   const horaDeCarga = !validClock(fecha, details.hora);
   const hora = horaDeCarga ? now.hora : details.hora;
-  const valoracion = Number.isInteger(details.valoracion) && Object.hasOwn(moodLabels, details.valoracion)
-    ? details.valoracion : undefined;
-  const momento = moments.includes(details.momento) ? details.momento : "";
-  const nota = typeof details.nota === "string" ? details.nota.trim().slice(0, 750) : "";
-  const id = chatDraft?.alimento === alimento && chatDraft.fecha === fecha ? chatDraft.id : newId();
-  chatDraft = {
-    id, tipo: "comida", alimento, fecha, hora, horaDeCarga, momento, valoracion,
-    sensacion: moodLabels[valoracion] || "",
-    nota: [nota, horaDeCarga && "Hora de carga. No se indicó la hora de la comida."].filter(Boolean).join(" "),
-    desfaseUTCMinutos: -new Date(fecha + "T" + hora).getTimezoneOffset()
-  };
-  renderChatMeal();
-  return true;
+  let entry;
+  try {
+    entry = importRecord({
+      ...details, id: newId(), tipo, fecha, hora, foto: undefined, comidaId: undefined,
+      momento: moments.includes(details.momento) ? details.momento : "",
+      desfaseUTCMinutos: -new Date(fecha + "T" + hora).getTimezoneOffset()
+    });
+  } catch {
+    if (tipo === "agua") return "¿Cuánta agua tomaste? Podés decirme la cantidad en litros o mililitros.";
+    return "Me faltan datos para preparar el registro de " + types[tipo].label.toLowerCase() + ". Contame un poco más o cargalo desde el diario.";
+  }
+  if (tipo === "estado" && !entry.valoracion && !entry.nota.trim() && !entry.sintomas.length && !entry.intensidad) {
+    return "¿Cómo te sentiste? Con eso puedo preparar un registro de Estado.";
+  }
+  if (tipo === "sueno" && !entry.duracionMin && !entry.nota.trim() && entry.despertares == null && !entry.valoracion && !entry.fechaInicio) {
+    return "¿Cuánto dormiste o cómo descansaste? Con eso puedo preparar un registro de Sueño.";
+  }
+  if (chatDraft?.tipo === tipo && chatDraft.fecha === fecha && draftTitle(chatDraft) === draftTitle(entry)) entry.id = chatDraft.id;
+  entry.horaDeCarga = horaDeCarga;
+  if (horaDeCarga) entry.nota = [entry.nota.trim().slice(0, 750), "Hora de carga. No se indicó la hora del registro."].filter(Boolean).join(" ");
+  chatDraft = entry;
+  renderChatRecord();
+  return "Preparé el registro en " + types[tipo].label + ". Tocá " + draftButtonLabel(tipo) + " para incorporarlo al historial.";
 }
 
-function finishChatMeal(entry, earned) {
+function finishChatRecord(entry, earned) {
   if (chatDraft?.id === entry.id) {
     chatDraft = null;
-    renderChatMeal();
+    renderChatRecord();
   }
-  lastChatMeal = entry;
+  lastChatRecord = entry;
   const reply = storage
-    ? "Guardé «" + entry.alimento + "» en el diario. Ya está en Historial."
-    : "«" + entry.alimento + "» quedó en el diario por esta sesión. Este navegador no permitió conservarlo.";
+    ? "Guardé «" + draftTitle(entry) + "» en " + types[entry.tipo].label + ". Ya está en Historial."
+    : "«" + draftTitle(entry) + "» quedó en el diario por esta sesión. Este navegador no permitió conservarlo.";
   addMessage(reply + (earned ? " +1 Cami point." : ""));
-  rememberChatTurn("Confirmé el registro de esta comida.", storage ? "El diario confirmó que se guardó." : "El diario la conservó solo en esta sesión.");
+  rememberChatTurn("Confirmé este registro.", storage ? "El diario confirmó que se guardó." : "El diario lo conservó solo en esta sesión.");
 }
 
 $("chat-draft-save").addEventListener("click", async () => {
@@ -1736,19 +1768,19 @@ $("chat-draft-save").addEventListener("click", async () => {
   try {
     const earned = await persistEntry(entry);
     render();
-    finishChatMeal(entry, earned);
+    finishChatRecord(entry, earned);
   } catch {
-    addMessage("No pude guardar la comida. Revisá que el navegador tenga espacio y probá de nuevo.");
+    addMessage("No pude guardar el registro. Revisá que el navegador tenga espacio y probá de nuevo.");
   } finally {
     setChatDraftBusy(false);
   }
 });
 $("chat-draft-edit").addEventListener("click", () => {
-  if (chatDraft) openForm("comida", chatDraft, chatDraft.id);
+  if (chatDraft) openForm(chatDraft.tipo, chatDraft, chatDraft.id);
 });
 $("chat-draft-dismiss").addEventListener("click", () => {
   chatDraft = null;
-  renderChatMeal();
+  renderChatRecord();
   addMessage("Descarté el borrador.");
 });
 
@@ -1758,16 +1790,9 @@ function mealFeeling(message) {
   if (found && !/\bno me (?:senti|cayo|dejo)\b/.test(normalizeName(message))) return ratings[found[1]];
 }
 
-function mealFromMessage(message) {
-  if (message.includes("?")) return null;
-  const match = /^(?:(hoy|ayer)\s+)?(?:me\s+)?(com[ií]|tom[eé]|desayun[eé]|almorc[eé]|merend[eé]|cen[eé]|registr[aá]|anot[aá])\s+(.+)$/iu.exec(message);
-  if (!match) return null;
-  const [, day, verb, description] = match;
-  const after = /\s+(?:hoy|ayer|a las|y me)\b/iu;
-  const alimento = description.split(after, 1)[0].trim().replace(/[.!;,]+$/, "");
-  if (!alimento || /^(?:algo|nada|mucho|poco|esto|eso|mi comida|lo que .+|lo|la)(?:[.!]*)$/iu.test(alimento)) return null;
+function chatRecordTime(description) {
   const when = new Date();
-  if (normalizeName(day || "") === "ayer" || /\bayer\b/iu.test(description)) when.setDate(when.getDate() - 1);
+  if (/\bayer\b/iu.test(description)) when.setDate(when.getDate() - 1);
   const time = /\ba las\s+([01]?\d|2[0-3])(?::([0-5]\d))?(?:\s+de la (mañana|tarde|noche))?(?=\s*(?:[.!?,;]|$|y\b))/iu.exec(description);
   let hora = "";
   if (time) {
@@ -1775,45 +1800,91 @@ function mealFromMessage(message) {
     const clockHour = time[3] && hour < 12 && normalizeName(time[3]) !== "manana" ? hour + 12 : hour;
     hora = String(clockHour).padStart(2, "0") + ":" + (time[2] || "00");
   }
-  const mealMoments = { desayune: "Desayuno", almorce: "Almuerzo", merende: "Merienda", cene: "Cena" };
-  return { alimento, fecha: fromLocalDate(when).fecha, hora, momento: mealMoments[normalizeName(verb)], valoracion: mealFeeling(message) };
+  return { fecha: fromLocalDate(when).fecha, hora };
 }
 
-function chatMealReply(message) {
-  const details = mealFromMessage(message);
-  if (details && setChatMeal(details)) return "Preparé el registro. Tocá Guardar comida para incorporarlo al historial.";
+function waterAmount(text) {
+  const amount = "(medio|media|un|una|½|\\d+(?:[.,]\\d+)?)\\s*(mililitros?|ml|litros?|l)\\b(?:\\s+(y medio))?";
+  const clean = normalizeName(text);
+  const match = new RegExp("(?:^|\\s)" + amount + "\\s+(?:de\\s+)?agua\\b(?!\\s+(?:de coco|saborizada))").exec(clean) ||
+    new RegExp("\\bagua\\s*[:,]?\\s*" + amount).exec(clean);
+  if (!match) return null;
+  const [, value, unit, half] = match;
+  const milliliters = unit.startsWith("m");
+  const numeric = milliliters && /^\d{1,2}\.\d{3}$/.test(value) ? value.replace(".", "") : value.replace(",", ".");
+  const quantity = /^(?:medio|media|½)$/.test(value) ? 0.5 : /^un/.test(value) ? 1 : Number(numeric);
+  return Math.round((quantity + (half ? 0.5 : 0)) * (milliliters ? 1 : 1000));
+}
+
+function waterFromMessage(message) {
+  const query = normalizeName(message);
+  if (!/\bagua\b/.test(query) || /\bno (?:tome|bebi|registres|cargues)\b/.test(query)) return null;
+  const request = /\b(?:carga|cargar|registra|registrar|anota|anotar|guarda|guardar)\b/.test(query);
+  const report = !query.includes("?") && /^(?:(?:hoy|ayer)\s+)?(?:me\s+)?(?:tome|bebi)\b/.test(query);
+  if (!request && !report) return null;
+  const cantidadMl = waterAmount(query);
+  if (cantidadMl == null && /(?:\b(?:vasos?|botellas?|tazas?)\b|\bagua(?:[.?!]|\s)*$)/.test(query)) {
+    return { tipo: "agua", ...chatRecordTime(message) };
+  }
+  return cantidadMl == null ? null : { tipo: "agua", cantidadMl, ...chatRecordTime(message) };
+}
+
+function mealFromMessage(message) {
+  if (message.includes("?")) return null;
+  const match = /^(?:(?:hoy|ayer)\s+)?(?:me\s+)?(com[ií]|desayun[eé]|almorc[eé]|merend[eé]|cen[eé])\s+(.+)$/iu.exec(message);
+  if (!match) return null;
+  const [, verb, description] = match;
+  const alimento = description.split(/\s+(?:hoy|ayer|a las|y me)\b/iu, 1)[0].trim().replace(/[.!;,]+$/, "");
+  if (!alimento || /^(?:algo|nada|mucho|poco|esto|eso|mi comida|lo que .+|lo|la)(?:[.!]*)$/iu.test(alimento)) return null;
+  const mealMoments = { desayune: "Desayuno", almorce: "Almuerzo", merende: "Merienda", cene: "Cena" };
+  return { tipo: "comida", alimento, ...chatRecordTime(message), momento: mealMoments[normalizeName(verb)], valoracion: mealFeeling(message) };
+}
+
+function chatRecordReply(message) {
+  const details = waterFromMessage(message) || mealFromMessage(message);
+  if (details) return setChatRecord(details);
   const grade = mealFeeling(message);
-  if (chatDraft && grade) {
+  if (chatDraft && grade && ratedTypes.includes(chatDraft.tipo)) {
     chatDraft.valoracion = grade;
-    chatDraft.sensacion = moodLabels[grade];
-    renderChatMeal();
-    return "Agregué cómo te sentiste al borrador. Tocá Guardar comida cuando esté listo.";
+    if (chatDraft.tipo === "comida") chatDraft.sensacion = moodLabels[grade];
+    renderChatRecord();
+    return "Agregué cómo te sentiste al borrador. Tocá " + draftButtonLabel(chatDraft.tipo) + " cuando esté listo.";
   }
   if (/\b(?:registraste|guardaste|anotaste|queda guardad[oa]|se guard[oó]|lo veo en el historial)\b/i.test(message)) {
-    if (chatDraft) return "La comida sigue como borrador. Tocá Guardar comida para que aparezca en Historial.";
-    if (lastChatMeal && records.some((entry) => entry.id === lastChatMeal.id)) {
-      return "«" + lastChatMeal.alimento + "» está en Historial, el " + dateLabel(lastChatMeal.fecha) + ".";
+    if (chatDraft) return "Sigue como borrador. Tocá " + draftButtonLabel(chatDraft.tipo) + " para que aparezca en Historial.";
+    if (lastChatRecord && records.some((entry) => entry.id === lastChatRecord.id)) {
+      return "«" + draftTitle(lastChatRecord) + "» está en Historial, el " + dateLabel(lastChatRecord.fecha) + ".";
     }
-    return "En esta charla todavía no quedó guardada ninguna comida. Contame qué comiste para preparar un registro.";
+    return "En esta charla todavía no quedó nada guardado. Contame qué querés registrar.";
   }
   return "";
 }
 
 function recordInstructions() {
   const { fecha } = fromLocalDate(new Date());
-  return {
-    role: "user",
-    content: "Instrucción de la app Diario diario. Hoy es " + fecha + ". El chat puede preparar borradores, y se guardan solo al tocar Guardar comida. Nunca afirmes que guardaste algo. Si te cuento qué comí o pido registrar una comida ya consumida, respondé en una línea REGISTRO_COMIDA: seguido de un objeto JSON con alimento y, solo si se conocen, fecha (AAAA-MM-DD), hora (HH:mm), momento (Desayuno, Almuerzo, Merienda, Cena o Entre comidas), valoracion (1 a 5) y nota. Para preguntas, recomendaciones o comidas futuras respondé normalmente."
-  };
+  return [
+    "Instrucción de Diario diario. Hoy es " + fecha + ". Si te cuento una carga pasada o pido registrar algo, elegí su categoría y devolvé una sola línea REGISTRO: seguida de un objeto JSON con tipo y solo los datos explícitos. Es un borrador: el usuario confirma el guardado; nunca digas que lo guardaste. Consultas, recomendaciones y planes futuros se responden normalmente. Si falta un dato esencial, preguntá. Campos comunes opcionales: fecha (AAAA-MM-DD), hora (HH:mm), valoracion (1 a 5) y nota.",
+    "Tipos y campos de REGISTRO: comida: alimento,momento (Desayuno/Almuerzo/Merienda/Cena/Entre comidas); agua: cantidadMl (entero), agua sola siempre en agua y no comida; actividad: actividad,duracionMin,esfuerzo (Generala va en actividad); estado: nota,sintomas,intensidad; bano: nota,consistencia; sueno: duracionMin,despertares; medicacion: medicamento,dosis; salud: sistolica,diastolica,temperatura (°C),pulsaciones (lpm),saturacion (%),peso (kg),otraMedicion. Usá números JSON para mediciones. No conviertas vasos o botellas a mililitros sin capacidad indicada."
+  ].map((content) => ({ role: "user", content }));
 }
 
-function readMealProposal(reply) {
-  const action = /^\s*REGISTRO_COMIDA:\s*(\{.*\})\s*$/m.exec(reply);
+function readRecordProposal(reply) {
+  const action = /^\s*REGISTRO(_COMIDA)?:\s*(\{[^\r\n]*\})\s*$/m.exec(reply);
   if (!action) return "";
   try {
-    if (setChatMeal(JSON.parse(action[1]))) return "Preparé el registro. Tocá Guardar comida para incorporarlo al historial.";
+    const details = JSON.parse(action[2]);
+    if (action[1]) details.tipo = "comida";
+    if (details.tipo === "comida" && typeof details.alimento === "string") {
+      const cantidadMl = waterAmount(details.alimento);
+      if (cantidadMl != null) return setChatRecord({ ...details, tipo: "agua", cantidadMl });
+      if (/^(?:agua|agua (?:mineral|natural|sin gas|con gas))$/.test(normalizeName(details.alimento))) {
+        return "¿Cuánta agua tomaste? Podés decirme la cantidad en litros o mililitros.";
+      }
+    }
+    const draft = setChatRecord(details);
+    if (draft) return draft;
   } catch {}
-  return "No pude preparar el registro. Contame qué comiste, por ejemplo «Comí carne hoy».";
+  return "No pude preparar el registro. Decime qué querés anotar y los datos que recordás.";
 }
 
 function mealContext() {
@@ -1877,7 +1948,7 @@ function diaryTurns(message, limit) {
     sueno: /\b(sueno|dormi|dormir|despertar|descanso)\b/,
     agua: /\b(agua|liquidos|hidratacion)\b/,
     medicacion: /\b(medicacion|remedio|medicamento|dosis)\b/,
-    actividad: /\b(actividad|entrene|gym|bici|natacion|padel|caminata)\b/,
+    actividad: /\b(actividad|entrene|gym|bici|natacion|padel|caminata|generala)\b/,
     bano: /\b(bano|evacuacion)\b/,
     estado: /\b(estado|sintoma|molestia|senti)\b/
   };
@@ -2034,7 +2105,7 @@ $("chat-form").addEventListener("submit", async (event) => {
     sendingChat = false;
     $("chat-send").disabled = false;
   }
-  const recordReply = chatMealReply(message);
+  const recordReply = chatRecordReply(message);
   if (recordReply) {
     rememberChatTurn(message, recordReply);
     addMessage(recordReply);
@@ -2057,9 +2128,9 @@ $("chat-form").addEventListener("submit", async (event) => {
       plato: alimento, momento, fecha, valoracion
     })) : [];
     const messages = [...chatTurns.slice(-8), { role: "user", content: message }];
-    const favoritesContext = favoriteTurns($("share-history").checked ? 1 : 5);
-    const historyContext = diaryTurns(message, 5 - favoritesContext.length);
-    const context = [recordInstructions(), ...historyContext, ...favoritesContext];
+    const favoritesContext = favoriteTurns($("share-history").checked ? 1 : 4);
+    const historyContext = diaryTurns(message, 4 - favoritesContext.length);
+    const context = [...recordInstructions(), ...historyContext, ...favoritesContext];
     // The deployed Worker accepts up to 9 turns, each with at most 600 user characters.
     const previousSlots = 2 * Math.floor((8 - context.length) / 2);
     const input = [...context, ...messages.slice(-(previousSlots + 1))];
@@ -2077,7 +2148,7 @@ $("chat-form").addEventListener("submit", async (event) => {
     if (!response.ok) throw new Error("Chat unavailable");
     const { reply } = await response.json();
     if (typeof reply !== "string" || !reply.trim()) throw new Error("Empty reply");
-    const visibleReply = readMealProposal(reply) || reply;
+    const visibleReply = readRecordProposal(reply) || reply;
     rememberChatTurn(message, visibleReply);
     pending.remove();
     addMessage(visibleReply);
